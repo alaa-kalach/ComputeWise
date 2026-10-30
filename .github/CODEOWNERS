@@ -1,0 +1,51 @@
+# Replace @person1 / @person2 / @person3 with GitHub usernames once roles are chosen.
+# Shared files need approval from all three (the "contract first" rule).
+
+# Shared
+/docs/contract/          @person1 @person2 @person3
+/docs/decisions.md       @person1 @person2 @person3
+/backend/app/models/     @person1 @person2 @person3
+/backend/app/main.py     @person1 @person2 @person3
+/frontend/src/lib/api/   @person1 @person2 @person3
+/frontend/src/components/ui/ @person1 @person2 @person3
+/frontend/src/mocks/     @person1 @person2 @person3
+/.env.example            @person1 @person2 @person3
+
+# Person 1: Access and identity
+/backend/app/core/       @person1
+/backend/app/access/     @person1
+/backend/app/adapters/runpod.py @person1
+/backend/app/agent/tools/usage.py @person1
+/backend/app/agent/tools/idle_pods.py @person1
+/backend/alembic/        @person1
+/backend/scripts/        @person1
+/backend/tests/access/   @person1
+/frontend/src/pages/user/ @person1
+/frontend/src/pages/department/ @person1
+/docs/notes/runpod.md    @person1
+
+# Person 2: Budget and enforcement
+/backend/app/budget/     @person2
+/backend/app/jobs/       @person2
+/backend/app/adapters/base.py @person2
+/backend/app/adapters/mock.py @person2
+/backend/app/agent/tools/budgets.py @person2
+/backend/app/agent/tools/warn.py @person2
+/backend/app/agent/tools/propose.py @person2
+/backend/tests/budget/   @person2
+/frontend/src/pages/professor/ @person2
+/supabase/               @person2
+/demo/                   @person2
+
+# Person 3: Insight
+/backend/app/insight/    @person3
+/backend/app/agent/loop.py @person3
+/backend/app/agent/tools/forecast.py @person3
+/backend/app/agent/tools/anomalies.py @person3
+/backend/app/adapters/openrouter.py @person3
+/backend/tests/insight/  @person3
+/frontend/src/app/       @person3
+/frontend/src/pages/escalations/ @person3
+/frontend/src/pages/reports/ @person3
+/evaluation/             @person3
+/docs/notes/openrouter.md @person3
