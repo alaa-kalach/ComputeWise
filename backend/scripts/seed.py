@@ -313,6 +313,19 @@ def build(now: datetime) -> list[SQLModel]:
     return rows
 
 
+def insert_seed(session: Session, now: datetime | None = None) -> list[SQLModel]:
+    """Insert all seed rows (no commit). Used by main() and by the tests."""
+    rows = build(now or datetime.now(timezone.utc))
+    # The models have no relationship() attributes, so insert table by table in
+    # foreign-key order (parents before children).
+    for table in SQLModel.metadata.sorted_tables:
+        batch = [r for r in rows if r.__tablename__ == table.name]  # type: ignore[attr-defined]
+        if batch:
+            session.add_all(batch)
+            session.flush()
+    return rows
+
+
 def reset(session: Session) -> None:
     # TRUNCATE skips the row-level append-only triggers on purpose: dev/test reset only.
     tables = ", ".join(t.name for t in SQLModel.metadata.sorted_tables)
@@ -330,14 +343,7 @@ def main() -> int:
         elif session.exec(select(Department).where(Department.id == I["dept"])).first():  # type: ignore[call-overload]
             print("Already seeded. Use --reset to wipe and seed again.")
             return 0
-        rows = build(datetime.now(timezone.utc))
-        # The models have no relationship() attributes, so insert table by table in
-        # foreign-key order (parents before children).
-        for table in SQLModel.metadata.sorted_tables:
-            batch = [r for r in rows if r.__tablename__ == table.name]  # type: ignore[attr-defined]
-            if batch:
-                session.add_all(batch)
-                session.flush()
+        rows = insert_seed(session)
         session.commit()
 
     counts: dict[str, int] = {}
