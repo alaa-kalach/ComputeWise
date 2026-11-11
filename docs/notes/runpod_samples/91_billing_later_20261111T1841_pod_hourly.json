@@ -1,0 +1,38 @@
+{
+  "recorded_at": "2026-11-11T18:41:42.754497+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://api.runpod.io/v2/billing/pods?podId=s4gxa09xywsjml&bucketSize=hour&lastN=24"
+  },
+  "status_code": 200,
+  "content_type": "application/json",
+  "body": {
+    "metadata": {
+      "query": {
+        "bucketSize": "hour",
+        "endTime": "2026-11-11T19:00:00Z",
+        "podId": "s4gxa09xywsjml",
+        "startTime": "2026-11-10T19:00:00Z"
+      },
+      "recordCount": 1,
+      "totals": {
+        "cpuAmount": 0,
+        "diskAmount": 0.00023148150648921728,
+        "gpuAmount": 0.0011340667260810733,
+        "totalAmount": 0.0013655482325702906
+      },
+      "uniquePodCount": 1
+    },
+    "records": [
+      {
+        "cpuAmount": 0,
+        "diskAmount": 0.00023148150648921728,
+        "endTime": "2026-11-11T12:00:00Z",
+        "gpuAmount": 0.0011340667260810733,
+        "podId": "s4gxa09xywsjml",
+        "startTime": "2026-11-11T11:00:00Z",
+        "totalAmount": 0.0013655482325702906
+      }
+    ]
+  }
+}

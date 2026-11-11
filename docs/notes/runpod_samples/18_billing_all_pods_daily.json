@@ -1,0 +1,27 @@
+{
+  "recorded_at": "2026-11-11T11:26:12.555717+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://api.runpod.io/v2/billing/pods?bucketSize=day&lastN=3"
+  },
+  "status_code": 200,
+  "content_type": "application/json",
+  "body": {
+    "metadata": {
+      "query": {
+        "bucketSize": "day",
+        "endTime": "2026-11-12T00:00:00Z",
+        "startTime": "2026-11-09T00:00:00Z"
+      },
+      "recordCount": 0,
+      "totals": {
+        "cpuAmount": 0,
+        "diskAmount": 0,
+        "gpuAmount": 0,
+        "totalAmount": 0
+      },
+      "uniquePodCount": 0
+    },
+    "records": []
+  }
+}

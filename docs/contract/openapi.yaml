@@ -1,0 +1,861 @@
+openapi: 3.1.0
+info:
+  title: ComputeWise API
+  version: 0.1.0-draft
+  description: |
+    The API contract. Every endpoint, with its request and response shapes.
+    Agreed in Week 1, then frozen: change it only after telling the other two.
+
+    STATUS: Person 1's part (auth, groups and members, access requests, credentials,
+    professors, RunPod pods) drafted 2026-11-11. Person 2 adds budgets, ledger, top-ups and
+    jobs; Person 3 adds OpenRouter keys, escalations, notifications and reports. Each
+    operation names its owner in `x-owner`.
+
+    CONVENTIONS (docs/decisions.md):
+    - Auth: `Authorization: Bearer <Supabase access token>` on every call except /health.
+      The frontend uses Supabase only to log in (D10).
+    - Scope: you only ever see your own subtree. Anything outside it is **404**, never 403,
+      so other professors' ids don't leak. Visible but not yours to change is **403** (D11).
+    - Only the group's own professor approves access, issues keys and stops/starts pods in
+      the group. Approved students launch their own pods (D21).
+    - Money is USD as a **string** with up to 4 decimals ("12.5000"), never a JSON number (D7).
+    - Ids are UUIDs, except RunPod's own pod id (`external_ref`). Times are ISO 8601 UTC.
+    - Periods are "YYYY-MM".
+    - Errors: `{"detail": "..."}` (FastAPI's format). 422 validation errors carry a list.
+    - Lists are plain JSON arrays (small data; no pagination in the MVP).
+    - Every change listed in the design writes an audit entry (D12); not repeated per call.
+servers:
+  - url: http://localhost:8000
+    description: Local backend (uvicorn)
+security:
+  - bearer: []
+tags:
+  - name: auth
+  - name: groups
+  - name: access
+  - name: credentials
+  - name: department
+  - name: pods
+  - name: system
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Liveness check
+      security: []
+      x-owner: person1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {type: object, properties: {status: {type: string, const: ok}}}
+
+  # ------------------------------------------------------------------ auth
+  /me:
+    get:
+      tags: [auth]
+      summary: Who am I? Call right after login to pick the layout.
+      description: |
+        First login links the Supabase account to the existing user by email. A login whose
+        email is not in ComputeWise gets 403 (sign-up is off; professors and admins add people).
+        `role` picks the default dashboard; `roles` lists every role held, so show a view
+        switch when it has more than one entry.
+      x-owner: person1
+      x-status: implemented
+      responses:
+        "200":
+          description: The caller
+          content: {application/json: {schema: {$ref: "#/components/schemas/Me"}}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403":
+          description: No ComputeWise account for this login
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  # ------------------------------------------------------------------ groups and members
+  /groups:
+    get:
+      tags: [groups]
+      summary: Groups visible to the caller
+      description: Admin - every group in the department. Professor - his own. User - the ones he belongs to.
+      x-owner: person1
+      x-status: implemented
+      responses:
+        "200":
+          description: Groups, ordered by name
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Group"}}}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+    post:
+      tags: [groups]
+      summary: Create a group (professor)
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 200, examples: ["FYP Team 3"]}
+      responses:
+        "201":
+          description: Created
+          content: {application/json: {schema: {$ref: "#/components/schemas/Group"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "409":
+          description: He already has a group with that name
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /groups/{group_id}:
+    parameters: [{$ref: "#/components/parameters/GroupId"}]
+    get:
+      tags: [groups]
+      summary: One group with its members
+      description: A user sees only his own member row; staff see every member.
+      x-owner: person1
+      x-status: implemented
+      responses:
+        "200":
+          description: The group
+          content: {application/json: {schema: {$ref: "#/components/schemas/GroupDetail"}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+    patch:
+      tags: [groups]
+      summary: Rename a group (its professor)
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [name], properties: {name: {type: string, minLength: 1, maxLength: 200}}}
+      responses:
+        "200":
+          description: Updated
+          content: {application/json: {schema: {$ref: "#/components/schemas/Group"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  /groups/{group_id}/members:
+    parameters: [{$ref: "#/components/parameters/GroupId"}]
+    post:
+      tags: [groups]
+      summary: Add a student to a group (its professor)
+      description: |
+        Looks the email up. A known user (e.g. already in another professor's group) is just
+        added; a new email creates the user and sends a Supabase invite to set a password.
+        The response never says which other groups the person belongs to.
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: {type: string, format: email}
+                name: {type: string, maxLength: 200, description: Required when the email is new}
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: "#/components/schemas/Member"}
+                  - type: object
+                    properties:
+                      invited: {type: boolean, description: True if an invite email was sent}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: Already a member of this group
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+        "422":
+          description: New email without a name, or invalid email
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /groups/{group_id}/members/{user_id}:
+    parameters:
+      - {$ref: "#/components/parameters/GroupId"}
+      - {$ref: "#/components/parameters/UserId"}
+    patch:
+      tags: [groups]
+      summary: Suspend or reactivate a member (its professor)
+      description: Suspending disables his keys and stops his pods in THIS group only.
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [status], properties: {status: {$ref: "#/components/schemas/MemberStatus"}}}
+      responses:
+        "200":
+          description: Updated
+          content: {application/json: {schema: {$ref: "#/components/schemas/Member"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+    delete:
+      tags: [groups]
+      summary: Remove a member (its professor)
+      description: Only if he never spent anything in this group; otherwise suspend him, so the ledger stays consistent.
+      x-owner: person1
+      responses:
+        "204": {description: Removed}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: Has spend in this group; suspend instead
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  # ------------------------------------------------------------------ access requests
+  /access-requests:
+    get:
+      tags: [access]
+      summary: Access requests in scope
+      description: User - his own. Professor - his groups'. Admin - the department's (read only).
+      x-owner: person1
+      parameters:
+        - {name: status, in: query, schema: {$ref: "#/components/schemas/RequestStatus"}}
+        - {name: group_id, in: query, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: Newest first
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AccessRequest"}}}}
+    post:
+      tags: [access]
+      summary: Request OpenRouter or RunPod access in one of my groups (user)
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group_id, provider]
+              properties:
+                group_id: {type: string, format: uuid}
+                provider: {$ref: "#/components/schemas/Provider"}
+                justification: {type: string, maxLength: 2000}
+      responses:
+        "201":
+          description: Created, status pending
+          content: {application/json: {schema: {$ref: "#/components/schemas/AccessRequest"}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: A pending request or approved access for this provider already exists, or the member is suspended
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /access-requests/{request_id}/approve:
+    parameters: [{$ref: "#/components/parameters/RequestId"}]
+    post:
+      tags: [access]
+      summary: Approve (the group's professor only)
+      description: |
+        RunPod: the student can now launch pods in this group.
+        OpenRouter: the student can now get his key ONCE with POST /keys (Person 3), so the
+        plaintext key is shown only to him and never stored (only its hash).
+      x-owner: person1
+      responses:
+        "200":
+          description: Approved
+          content: {application/json: {schema: {$ref: "#/components/schemas/AccessRequest"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: Not pending, or the professor has no active credential bound for this provider
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /access-requests/{request_id}/reject:
+    parameters: [{$ref: "#/components/parameters/RequestId"}]
+    post:
+      tags: [access]
+      summary: Reject (the group's professor only)
+      x-owner: person1
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, properties: {reason: {type: string, maxLength: 2000}}}
+      responses:
+        "200":
+          description: Rejected
+          content: {application/json: {schema: {$ref: "#/components/schemas/AccessRequest"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {description: "Not pending", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  # ------------------------------------------------------------------ credentials
+  /credentials:
+    get:
+      tags: [credentials]
+      summary: Credentials in scope (metadata only, never the secret)
+      description: Admin - department credentials and his professors' own. Professor - his own plus granted ones. User - none.
+      x-owner: person1
+      responses:
+        "200":
+          description: Credentials
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Credential"}}}}
+    post:
+      tags: [credentials]
+      summary: Add a provider credential (admin for the department, professor for himself)
+      description: The secret is encrypted at rest and is never returned by any endpoint.
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner, provider, label, secret]
+              properties:
+                owner: {$ref: "#/components/schemas/OwnerType"}
+                provider: {$ref: "#/components/schemas/Provider"}
+                label: {type: string, maxLength: 200}
+                secret: {type: string, writeOnly: true, description: OpenRouter management key or RunPod API key}
+      responses:
+        "201":
+          description: Created
+          content: {application/json: {schema: {$ref: "#/components/schemas/Credential"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "422":
+          description: The provider rejected the secret (checked with one read-only call)
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /credentials/{credential_id}:
+    parameters: [{$ref: "#/components/parameters/CredentialId"}]
+    delete:
+      tags: [credentials]
+      summary: Revoke a credential (its owner)
+      description: Disables every key issued under it and stops its running pods (B6 cascade).
+      x-owner: person1
+      responses:
+        "204": {description: Revoked}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  /credentials/{credential_id}/grants:
+    parameters: [{$ref: "#/components/parameters/CredentialId"}]
+    post:
+      tags: [credentials]
+      summary: Grant a department credential to a professor (admin)
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [professor_id]
+              properties:
+                professor_id: {type: string, format: uuid}
+                ceiling_usd: {$ref: "#/components/schemas/MoneyOrNull"}
+      responses:
+        "201":
+          description: Granted
+          content: {application/json: {schema: {$ref: "#/components/schemas/Grant"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {description: "Already granted", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  /credentials/{credential_id}/grants/{grant_id}:
+    parameters:
+      - {$ref: "#/components/parameters/CredentialId"}
+      - {name: grant_id, in: path, required: true, schema: {type: string, format: uuid}}
+    patch:
+      tags: [credentials]
+      summary: Change a grant's ceiling (admin)
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [ceiling_usd], properties: {ceiling_usd: {$ref: "#/components/schemas/MoneyOrNull"}}}
+      responses:
+        "200":
+          description: Updated
+          content: {application/json: {schema: {$ref: "#/components/schemas/Grant"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+    delete:
+      tags: [credentials]
+      summary: Revoke a grant (admin); same cascade as revoking the credential, for that professor
+      x-owner: person1
+      responses:
+        "204": {description: Revoked}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  /bindings:
+    get:
+      tags: [credentials]
+      summary: Which credential the calling professor uses per provider
+      x-owner: person1
+      responses:
+        "200":
+          description: Zero to two bindings
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Binding"}}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+
+  /bindings/{provider}:
+    parameters:
+      - {name: provider, in: path, required: true, schema: {$ref: "#/components/schemas/Provider"}}
+    put:
+      tags: [credentials]
+      summary: Choose the active credential for a provider (professor; one per provider)
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [credential_id], properties: {credential_id: {type: string, format: uuid}}}
+      responses:
+        "200":
+          description: Bound
+          content: {application/json: {schema: {$ref: "#/components/schemas/Binding"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {description: "Credential is for another provider, or revoked", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  # ------------------------------------------------------------------ department (A10)
+  /professors:
+    get:
+      tags: [department]
+      summary: Professors in scope with their budget setting
+      description: Spend figures come from the reports API (Person 3), not here.
+      x-owner: person1
+      responses:
+        "200":
+          description: Professors
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Professor"}}}}
+    post:
+      tags: [department]
+      summary: Add a professor (admin); sends a Supabase invite if the email is new
+      x-owner: person1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, name]
+              properties:
+                email: {type: string, format: email}
+                name: {type: string, maxLength: 200}
+      responses:
+        "201":
+          description: Added
+          content: {application/json: {schema: {$ref: "#/components/schemas/Professor"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "409": {description: "Already a professor", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  /professors/{professor_id}:
+    parameters: [{name: professor_id, in: path, required: true, schema: {type: string, format: uuid}}]
+    delete:
+      tags: [department]
+      summary: Remove a professor (admin)
+      description: Refused while he has groups with active members, keys or running pods.
+      x-owner: person1
+      responses:
+        "204": {description: Removed}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {description: "Still has active groups, keys or pods", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  /professors/{professor_id}/budget-setting:
+    parameters: [{name: professor_id, in: path, required: true, schema: {type: string, format: uuid}}]
+    put:
+      tags: [department]
+      summary: Set a professor's ceiling or tracking only (admin)
+      description: Saved as his professor-level budget policy through Person 2's A4 (D1).
+      x-owner: person1
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/BudgetSetting"}}}
+      responses:
+        "200":
+          description: Saved
+          content: {application/json: {schema: {$ref: "#/components/schemas/Professor"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {description: "Ceiling below what he already allocated this month", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  # ------------------------------------------------------------------ RunPod pods (B4)
+  /runpod/gpus:
+    get:
+      tags: [pods]
+      summary: GPU types with live price and availability (for the launch form)
+      description: Read through the group's professor's RunPod credential; cached ~5 minutes.
+      x-owner: person1
+      parameters:
+        - {name: group_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: Cheapest first; availability NONE included but not launchable
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/GpuOption"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {description: "No RunPod credential bound for this group's professor", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  /pods:
+    get:
+      tags: [pods]
+      summary: Pods in scope
+      description: User - his own. Professor - his groups'. Admin - the department's.
+      x-owner: person1
+      parameters:
+        - {name: group_id, in: query, schema: {type: string, format: uuid}}
+        - {name: include_terminated, in: query, schema: {type: boolean, default: false}}
+      responses:
+        "200":
+          description: Pods (connection details only in GET /pods/{id})
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Pod"}}}}
+    post:
+      tags: [pods]
+      summary: Launch a pod (a student with approved RunPod access in that group)
+      description: |
+        Pre-launch check: refused unless the team (and the user's own budget, if set) covers
+        at least 1 hour of the GPU price plus storage, and the GPU's availability is not NONE.
+        Returns at once with state `starting`; poll GET /pods/{id} until `running`.
+      x-owner: person1
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/PodLaunch"}}}
+      responses:
+        "201":
+          description: Created
+          content: {application/json: {schema: {$ref: "#/components/schemas/Pod"}}}
+        "403": {description: "No approved RunPod access in this group, or suspended", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: Launch refused by the pre-launch check or by RunPod (no capacity)
+          content: {application/json: {schema: {$ref: "#/components/schemas/LaunchRefused"}}}
+
+  /pods/{pod_id}:
+    parameters: [{$ref: "#/components/parameters/PodId"}]
+    get:
+      tags: [pods]
+      summary: One pod, with connection details when running
+      description: "`connection.jupyter_password` is only returned to the pod's owner."
+      x-owner: person1
+      responses:
+        "200":
+          description: The pod
+          content: {application/json: {schema: {$ref: "#/components/schemas/PodDetail"}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+    delete:
+      tags: [pods]
+      summary: Terminate (the pod's owner or the group's professor); deletes its data
+      x-owner: person1
+      responses:
+        "204": {description: Terminated}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  /pods/{pod_id}/stop:
+    parameters: [{$ref: "#/components/parameters/PodId"}]
+    post:
+      tags: [pods]
+      summary: Stop (owner or the group's professor); the volume is kept and still costs storage
+      x-owner: person1
+      responses:
+        "200":
+          description: Stopped
+          content: {application/json: {schema: {$ref: "#/components/schemas/Pod"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {description: "Not running", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  /pods/{pod_id}/start:
+    parameters: [{$ref: "#/components/parameters/PodId"}]
+    post:
+      tags: [pods]
+      summary: Start a stopped pod again (owner or the group's professor); same pre-launch check
+      x-owner: person1
+      responses:
+        "200":
+          description: Starting
+          content: {application/json: {schema: {$ref: "#/components/schemas/Pod"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: Not stopped, refused by the pre-launch check, or no GPU free on that machine
+          content: {application/json: {schema: {$ref: "#/components/schemas/LaunchRefused"}}}
+
+  # ------------------------------------------------------------------ placeholders for the others
+  /keys:
+    post:
+      tags: [access]
+      summary: "PROPOSED (Person 3): get my OpenRouter key once, after approval"
+      description: |
+        The student calls this after his OpenRouter request is approved. The key is created
+        now, returned in this response only, and never stored (only its hash). Calling it
+        again returns 409. This replaces "show the key once" at approval time, because the
+        professor approves but only the student may see the key.
+      x-owner: person3
+      x-status: proposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [group_id], properties: {group_id: {type: string, format: uuid}}}
+      responses:
+        "201":
+          description: The key, shown once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resource_id, key, limit_usd]
+                properties:
+                  resource_id: {type: string, format: uuid}
+                  key: {type: string, description: Plaintext OpenRouter key. Shown only in this response.}
+                  limit_usd: {$ref: "#/components/schemas/Money"}
+        "403": {description: "No approved OpenRouter access in this group", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+        "409": {description: "Key already issued", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Supabase access token (JWT)
+
+  parameters:
+    GroupId: {name: group_id, in: path, required: true, schema: {type: string, format: uuid}}
+    UserId: {name: user_id, in: path, required: true, schema: {type: string, format: uuid}}
+    RequestId: {name: request_id, in: path, required: true, schema: {type: string, format: uuid}}
+    CredentialId: {name: credential_id, in: path, required: true, schema: {type: string, format: uuid}}
+    PodId:
+      name: pod_id
+      in: path
+      required: true
+      description: ComputeWise's id (issued_resources.id), not RunPod's
+      schema: {type: string, format: uuid}
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+    NotAllowed:
+      description: Visible, but your role can't do this (e.g. the department approving a request)
+      content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+    NotFound:
+      description: Doesn't exist, or is outside your scope
+      content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  schemas:
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          description: A message, or a list of validation errors (422)
+          oneOf: [{type: string}, {type: array, items: {type: object}}]
+
+    Money:
+      type: string
+      pattern: '^-?\d+(\.\d{1,4})?$'
+      description: USD as a decimal string
+      examples: ["12.5000"]
+    MoneyOrNull:
+      oneOf: [{$ref: "#/components/schemas/Money"}, {type: "null"}]
+
+    Role: {type: string, enum: [department_admin, professor, user]}
+    Provider: {type: string, enum: [openrouter, runpod]}
+    OwnerType: {type: string, enum: [department, professor]}
+    MemberStatus: {type: string, enum: [active, suspended]}
+    RequestStatus: {type: string, enum: [pending, approved, rejected]}
+
+    Me:
+      type: object
+      required: [id, name, email, role, roles, department_ids, professor_id, memberships]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        email: {type: string}
+        role: {$ref: "#/components/schemas/Role"}
+        roles: {type: array, items: {$ref: "#/components/schemas/Role"}}
+        department_ids: {type: array, items: {type: string, format: uuid}}
+        professor_id: {type: [string, "null"], format: uuid}
+        memberships:
+          type: array
+          items:
+            type: object
+            required: [group_id, group_name, professor_id, status]
+            properties:
+              group_id: {type: string, format: uuid}
+              group_name: {type: string}
+              professor_id: {type: string, format: uuid}
+              status: {$ref: "#/components/schemas/MemberStatus"}
+
+    Group:
+      type: object
+      required: [id, name, professor_id, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        professor_id: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+    Member:
+      type: object
+      required: [user_id, name, email, status]
+      properties:
+        user_id: {type: string, format: uuid}
+        name: {type: string}
+        email: {type: string}
+        status: {$ref: "#/components/schemas/MemberStatus"}
+    GroupDetail:
+      allOf:
+        - {$ref: "#/components/schemas/Group"}
+        - type: object
+          required: [members]
+          properties:
+            members: {type: array, items: {$ref: "#/components/schemas/Member"}}
+
+    AccessRequest:
+      type: object
+      required: [id, user_id, user_name, group_id, group_name, provider, status, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        user_id: {type: string, format: uuid}
+        user_name: {type: string}
+        group_id: {type: string, format: uuid}
+        group_name: {type: string}
+        provider: {$ref: "#/components/schemas/Provider"}
+        justification: {type: [string, "null"]}
+        status: {$ref: "#/components/schemas/RequestStatus"}
+        reason: {type: [string, "null"], description: Rejection reason, if any}
+        decided_by_name: {type: [string, "null"]}
+        decided_at: {type: [string, "null"], format: date-time}
+        created_at: {type: string, format: date-time}
+
+    Credential:
+      type: object
+      description: Metadata only. There is no field that ever holds the secret.
+      required: [id, owner_type, owner_id, provider, label, status, created_at, grants]
+      properties:
+        id: {type: string, format: uuid}
+        owner_type: {$ref: "#/components/schemas/OwnerType"}
+        owner_id: {type: string, format: uuid}
+        provider: {$ref: "#/components/schemas/Provider"}
+        label: {type: string}
+        status: {type: string, enum: [active, revoked]}
+        created_at: {type: string, format: date-time}
+        grants:
+          description: Department credentials only; empty otherwise. A professor sees only his own grant.
+          type: array
+          items: {$ref: "#/components/schemas/Grant"}
+    Grant:
+      type: object
+      required: [id, credential_id, professor_id, professor_name, ceiling_usd, status]
+      properties:
+        id: {type: string, format: uuid}
+        credential_id: {type: string, format: uuid}
+        professor_id: {type: string, format: uuid}
+        professor_name: {type: string}
+        ceiling_usd: {$ref: "#/components/schemas/MoneyOrNull"}
+        status: {type: string, enum: [active, revoked]}
+    Binding:
+      type: object
+      required: [provider, credential_id, credential_label, is_department]
+      properties:
+        provider: {$ref: "#/components/schemas/Provider"}
+        credential_id: {type: string, format: uuid}
+        credential_label: {type: string}
+        is_department: {type: boolean, description: True = billable to the department}
+
+    BudgetSetting:
+      type: object
+      required: [mode]
+      properties:
+        mode: {type: string, enum: [ceiling, tracking]}
+        monthly_amount: {$ref: "#/components/schemas/MoneyOrNull"}
+        rollover: {type: boolean, default: true}
+        rollover_cap: {$ref: "#/components/schemas/MoneyOrNull"}
+      description: monthly_amount is required for `ceiling` and must be null for `tracking`.
+    Professor:
+      type: object
+      required: [id, user_id, name, email, department_id, budget_setting, group_count]
+      properties:
+        id: {type: string, format: uuid}
+        user_id: {type: string, format: uuid}
+        name: {type: string}
+        email: {type: string}
+        department_id: {type: string, format: uuid}
+        budget_setting: {$ref: "#/components/schemas/BudgetSetting"}
+        group_count: {type: integer}
+        invited: {type: boolean, description: Only in the response to POST /professors}
+
+    GpuOption:
+      type: object
+      required: [gpu_type_id, name, vram_gb, cloud, price_per_hour, availability]
+      properties:
+        gpu_type_id: {type: string, examples: ["NVIDIA RTX A2000"]}
+        name: {type: string, examples: ["RTX A2000"]}
+        vram_gb: {type: integer}
+        cloud: {type: string, enum: [secure, community]}
+        price_per_hour: {$ref: "#/components/schemas/Money"}
+        availability: {type: string, enum: [none, low, medium, high]}
+        affordable_hours: {type: [string, "null"], description: "How long the team's remaining budget covers it (e.g. \"38.5\"); null if unlimited"}
+
+    PodLaunch:
+      type: object
+      required: [group_id, gpu_type_id, cloud]
+      properties:
+        group_id: {type: string, format: uuid}
+        gpu_type_id: {type: string}
+        cloud: {type: string, enum: [secure, community]}
+        gpu_count: {type: integer, minimum: 1, maximum: 1, default: 1}
+        container_disk_gb: {type: integer, minimum: 10, maximum: 100, default: 10}
+        volume_gb: {type: integer, minimum: 10, maximum: 200, default: 10}
+        jupyter: {type: boolean, default: true}
+    LaunchRefused:
+      type: object
+      required: [detail, reason]
+      properties:
+        detail: {type: string}
+        reason: {type: string, enum: [budget, unavailable, no_capacity, not_stopped]}
+        needed_usd: {$ref: "#/components/schemas/MoneyOrNull"}
+        remaining_usd: {$ref: "#/components/schemas/MoneyOrNull"}
+
+    PodState:
+      type: string
+      description: |
+        starting = RunPod says RUNNING but runtime has not appeared yet; running = runtime present;
+        stopped = EXITED (volume kept); terminated = gone on RunPod (kept here for history).
+      enum: [starting, running, stopped, terminated]
+    Pod:
+      type: object
+      required: [id, external_ref, user_id, user_name, group_id, gpu_name, cloud, price_per_hour, state, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        external_ref: {type: string, description: RunPod's pod id}
+        user_id: {type: string, format: uuid}
+        user_name: {type: string}
+        group_id: {type: string, format: uuid}
+        gpu_name: {type: string}
+        cloud: {type: string, enum: [secure, community]}
+        price_per_hour: {$ref: "#/components/schemas/Money"}
+        storage_per_hour: {$ref: "#/components/schemas/Money"}
+        container_disk_gb: {type: integer}
+        volume_gb: {type: integer}
+        state: {$ref: "#/components/schemas/PodState"}
+        started_at: {type: [string, "null"], format: date-time, description: Start of the current session}
+        stopped_by: {type: [string, "null"], enum: [owner, professor, watchdog, null]}
+        spent_this_month_usd: {$ref: "#/components/schemas/Money"}
+        created_at: {type: string, format: date-time}
+    PodDetail:
+      allOf:
+        - {$ref: "#/components/schemas/Pod"}
+        - type: object
+          properties:
+            connection:
+              type: [object, "null"]
+              description: Present only while state = running
+              properties:
+                ssh_proxy: {type: string, examples: ["ssh abc123-64410f89@ssh.runpod.io"]}
+                ssh_direct: {type: [string, "null"], examples: ["ssh root@194.26.196.170 -p 22796"]}
+                jupyter_url: {type: [string, "null"]}
+                jupyter_password: {type: [string, "null"], description: Owner only}
+            gpu_util_percent: {type: [integer, "null"]}

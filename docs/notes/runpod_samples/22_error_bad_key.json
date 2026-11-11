@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-11-11T11:26:13.557753+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://api.runpod.io/v2/pods"
+  },
+  "status_code": 401,
+  "content_type": "application/problem+json",
+  "body": {
+    "detail": "Subject token is invalid or expired",
+    "status": 401,
+    "title": "Unauthorized"
+  }
+}

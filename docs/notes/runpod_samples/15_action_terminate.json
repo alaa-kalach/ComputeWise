@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-11-11T11:25:10.917232+00:00",
+  "request": {
+    "method": "POST",
+    "url": "https://api.runpod.io/v2/pods/s4gxa09xywsjml/action",
+    "json": {
+      "action": "terminate"
+    }
+  },
+  "status_code": 204,
+  "content_type": null,
+  "body": ""
+}

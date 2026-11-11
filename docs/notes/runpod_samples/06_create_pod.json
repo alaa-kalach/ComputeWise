@@ -1,0 +1,85 @@
+{
+  "recorded_at": "2026-11-11T11:24:14.474561+00:00",
+  "request": {
+    "method": "POST",
+    "url": "https://api.runpod.io/v2/pods",
+    "json": {
+      "name": "computewise-probe",
+      "image": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+      "gpu": {
+        "id": "NVIDIA RTX A2000",
+        "count": 1
+      },
+      "cloud": "COMMUNITY",
+      "disk": 10,
+      "mounts": {
+        "persistent": {
+          "size": 10,
+          "path": "/workspace"
+        }
+      },
+      "ports": [
+        "8888/http",
+        "22/tcp"
+      ],
+      "startJupyter": true
+    }
+  },
+  "status_code": 201,
+  "content_type": "application/json",
+  "body": {
+    "actions": [
+      "stop",
+      "restart",
+      "terminate"
+    ],
+    "args": "",
+    "cloud": "COMMUNITY",
+    "cost": 0.12,
+    "createdAt": "2026-11-11T11:24:14.373Z",
+    "cudaVersion": "12.4",
+    "dataCenterId": null,
+    "disk": 10,
+    "env": {
+      "JUPYTER_PASSWORD": "[redacted]"
+    },
+    "globalNetworking": {
+      "enabled": false
+    },
+    "gpu": {
+      "count": 1,
+      "id": "NVIDIA RTX A2000",
+      "memory": 62,
+      "vcpuCount": 6
+    },
+    "id": "s4gxa09xywsjml",
+    "image": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "locked": false,
+    "mounts": {
+      "persistent": {
+        "path": "/workspace",
+        "size": 10
+      }
+    },
+    "name": "computewise-probe",
+    "ports": [
+      "8888/http",
+      "22/tcp"
+    ],
+    "registry": null,
+    "runtime": null,
+    "ssh": {
+      "direct": null,
+      "proxy": {
+        "command": "ssh s4gxa09xywsjml-64410f89@ssh.runpod.io",
+        "host": "ssh.runpod.io",
+        "port": 22,
+        "username": "s4gxa09xywsjml-64410f89"
+      }
+    },
+    "startedAt": "2026-11-11T11:24:14.368Z",
+    "status": "RUNNING",
+    "tags": [],
+    "template": null
+  }
+}

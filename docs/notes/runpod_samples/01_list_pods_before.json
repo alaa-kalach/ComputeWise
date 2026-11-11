@@ -1,0 +1,16 @@
+{
+  "recorded_at": "2026-11-11T11:23:31.405318+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://api.runpod.io/v2/pods"
+  },
+  "status_code": 200,
+  "content_type": "application/json",
+  "body": {
+    "pagination": {
+      "hasNextPage": false,
+      "nextCursor": null
+    },
+    "pods": []
+  }
+}

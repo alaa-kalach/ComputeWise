@@ -1,0 +1,20 @@
+{
+  "recorded_at": "2026-11-11T11:26:13.559085+00:00",
+  "body": {
+    "pod_id": "s4gxa09xywsjml",
+    "terminated": true,
+    "timings": {
+      "create_call_seconds": 1.23,
+      "start_seconds": 0.5,
+      "stop_seconds": 0.4,
+      "restart_seconds": 0.4,
+      "total_seconds": 162.6
+    },
+    "rate_limit_headers": {
+      "ratelimit": "\"minute\";r=175;t=47, \"hour\";r=7167;t=2027, \"day\";r=86367;t=45227",
+      "ratelimit-policy": "\"minute\";q=180;w=60, \"hour\";q=7200;w=3600, \"day\";q=86400;w=86400"
+    },
+    "notes": [],
+    "exit_code": 0
+  }
+}

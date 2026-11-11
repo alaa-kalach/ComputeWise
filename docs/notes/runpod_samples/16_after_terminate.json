@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-11-11T11:25:11.241763+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://api.runpod.io/v2/pods/s4gxa09xywsjml"
+  },
+  "status_code": 404,
+  "content_type": "application/problem+json",
+  "body": {
+    "detail": "pod not found",
+    "status": 404,
+    "title": "Not Found"
+  }
+}
