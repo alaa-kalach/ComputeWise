@@ -14,13 +14,15 @@ from __future__ import annotations
 import json
 import re
 import sys
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import httpx
 from dotenv import dotenv_values
 
-from app.adapters.openrouter import BASE_URL, OpenRouterAdapter, OpenRouterError
+from app.adapters import AdapterError, IssueRequest
+from app.adapters.openrouter import BASE_URL, OpenRouterAdapter
 
 BACKEND = Path(__file__).resolve().parents[1]
 REPO = BACKEND.parent
@@ -79,19 +81,23 @@ def main() -> int:
             if s >= 400:
                 print(f"!! COULD NOT DELETE the probe key {key_hash}. Delete it by hand in OpenRouter > Settings > Keys.")
 
-    print("\nAdapter check (issue, set limit, usage, disable, delete):")
+    print("\nAdapter check (issue, set limit, usage, stop, resume, revoke):")
     ad = OpenRouterAdapter(mgmt)
-    issued = ad.issue_key("computewise-probe-adapter", 0.10)
+    issued = ad.issue(IssueRequest(name="computewise-probe-adapter", user_id="probe", group_id="probe", limit_usd=Decimal("0.10")))
     try:
-        print("  issued:", issued)  # the secret is hidden from repr
-        print("  set_limit:", ad.set_limit(issued.external_ref, 0.20).limit_usd)
-        print("  usage:", ad.fetch_usage(issued.external_ref).usage_usd)
-        print("  disabled:", ad.disable_key(issued.external_ref).disabled)
-    except OpenRouterError as exc:
+        ref = issued.external_ref
+        print("  issued: hash", ref[:8] + "...", "| secret returned:", bool(issued.secret))
+        ad.set_limit(ref, Decimal("0.20"))
+        print("  usage after set_limit:", ad.fetch_usage([ref])[ref])
+        ad.stop(ref)
+        print("  after stop:", ad.fetch_usage([ref])[ref].state.value)
+        ad.resume(ref)
+        print("  after resume:", ad.fetch_usage([ref])[ref].state.value)
+    except AdapterError as exc:
         print("  adapter error:", exc)
     finally:
-        ad.delete_key(issued.external_ref)
-        print("  probe key deleted")
+        ad.revoke(issued.external_ref)
+        print("  after revoke:", ad.fetch_usage([issued.external_ref])[issued.external_ref].state.value)
     print(f"\nSamples saved in {OUT_DIR}")
     return 0
 

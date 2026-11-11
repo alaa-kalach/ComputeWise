@@ -51,6 +51,9 @@ Each call is one method in `app/adapters/openrouter.py` (`issue_key`, `set_limit
 The adapter turns these into `OpenRouterError(status, message)`. The message never contains a key.
 
 ## Things to know
+- **The key LIST hides disabled keys.** Found by the probe: after a key was disabled it no longer
+  showed up in `GET /keys`, but `GET /keys/{hash}` still returns it with `disabled: true`. So the
+  adapter reads usage with one GET per key. Only a 404 on that call means the key is gone.
 - Money comes back as plain numbers, so the adapter reads them as `Decimal`.
 - `usage` is all-time spend of that key. `usage_monthly` is the calendar month (UTC).
 - The page does not say what `limit: null` does on a PATCH. We never send it.

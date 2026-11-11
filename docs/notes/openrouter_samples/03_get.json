@@ -1,15 +1,15 @@
 {
   "request": {
     "method": "GET",
-    "path": "/keys/5a20f9b4c88bb244c9f8503665931b3cecea57992b9b231191811941f817148b",
+    "path": "/keys/4b6b01700893f3b7c16060cfbfe4b3f148620fcd4ec75180a3763bc348714d8f",
     "body": null
   },
   "status": 200,
   "response": {
     "data": {
-      "hash": "5a20f9b4c88bb244c9f8503665931b3cecea57992b9b231191811941f817148b",
+      "hash": "4b6b01700893f3b7c16060cfbfe4b3f148620fcd4ec75180a3763bc348714d8f",
       "name": "computewise-probe",
-      "label": "[redacted]...3f9",
+      "label": "[redacted]...a87",
       "disabled": false,
       "limit": 0.1,
       "limit_remaining": 0.1,
@@ -23,7 +23,7 @@
       "byok_usage_daily": 0,
       "byok_usage_weekly": 0,
       "byok_usage_monthly": 0,
-      "created_at": "2026-11-11T17:36:31.805Z",
+      "created_at": "2026-11-11T17:48:06.352Z",
       "updated_at": null,
       "expires_at": null,
       "last_used_at": null,
