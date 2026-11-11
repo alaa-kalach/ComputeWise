@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/keys?offset=0",
+    "body": null
+  },
+  "status": 401,
+  "response": {
+    "error": {
+      "message": "Invalid API key",
+      "code": 401
+    }
+  }
+}
