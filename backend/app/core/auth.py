@@ -34,7 +34,12 @@ from app.models import DepartmentAdmin, Professor, User
 
 
 class Role(str, enum.Enum):
-    """The design's three roles. Groups are not a role."""
+    """The design's three roles. Groups are not a role.
+
+    Roles can be COMBINED: a department admin can also be a professor (Sub-admin).
+    Only the professor role approves access, issues keys and stops or starts pods, and only
+    in that professor's own groups; approved students launch their own pods. A department admin without the professor role never does.
+    """
 
     department_admin = "department_admin"
     professor = "professor"
@@ -44,15 +49,37 @@ class Role(str, enum.Enum):
 @dataclass(frozen=True)
 class CurrentUser:
     user: User
-    role: Role
-    # department_admin: the department(s) they administer. professor: his department.
-    department_ids: frozenset[uuid.UUID] = field(default_factory=frozenset)
-    # professor only: professors.id (not users.id)
+    roles: frozenset[Role]
+    # Departments this user administers (department_admin role).
+    admin_department_ids: frozenset[uuid.UUID] = field(default_factory=frozenset)
+    # professor role only: professors.id (not users.id) and his department.
     professor_id: uuid.UUID | None = None
+    professor_department_id: uuid.UUID | None = None
 
     @property
     def id(self) -> uuid.UUID:
         return self.user.id
+
+    @property
+    def role(self) -> Role:
+        """Primary role, for the default dashboard: department_admin > professor > user."""
+        for r in (Role.department_admin, Role.professor):
+            if r in self.roles:
+                return r
+        return Role.user
+
+    @property
+    def is_admin(self) -> bool:
+        return Role.department_admin in self.roles
+
+    @property
+    def is_professor(self) -> bool:
+        return Role.professor in self.roles
+
+    @property
+    def department_ids(self) -> frozenset[uuid.UUID]:
+        extra = {self.professor_department_id} if self.professor_department_id else set()
+        return self.admin_department_ids | extra
 
 
 _bearer = HTTPBearer(auto_error=False)
@@ -154,19 +181,26 @@ def _resolve_user(session: Session, claims: dict[str, Any]) -> User:
 
 
 def load_current_user(session: Session, user: User) -> CurrentUser:
-    """Work out the role of a known user. Department admin > professor > user."""
+    """Collect every role the user holds (a department admin may also be a professor)."""
     admin_of = frozenset(
         session.exec(select(DepartmentAdmin.department_id).where(DepartmentAdmin.user_id == user.id)).all()
     )
-    if admin_of:
-        return CurrentUser(user=user, role=Role.department_admin, department_ids=admin_of)
-
     prof = session.exec(select(Professor).where(Professor.user_id == user.id)).first()
+
+    roles: set[Role] = set()
+    if admin_of:
+        roles.add(Role.department_admin)
     if prof:
-        return CurrentUser(
-            user=user, role=Role.professor, department_ids=frozenset({prof.department_id}), professor_id=prof.id
-        )
-    return CurrentUser(user=user, role=Role.user)
+        roles.add(Role.professor)
+    if not roles:
+        roles.add(Role.user)
+    return CurrentUser(
+        user=user,
+        roles=frozenset(roles),
+        admin_department_ids=admin_of,
+        professor_id=prof.id if prof else None,
+        professor_department_id=prof.department_id if prof else None,
+    )
 
 
 def get_current_user(
@@ -183,10 +217,10 @@ CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 
 
 def require_role(*roles: Role):
-    """Dependency factory: 403 unless the caller has one of these roles."""
+    """Dependency factory: 403 unless the caller holds at least one of these roles."""
 
     def _check(me: CurrentUserDep) -> CurrentUser:
-        if me.role not in roles:
+        if not me.roles & set(roles):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed for your role")
         return me
 

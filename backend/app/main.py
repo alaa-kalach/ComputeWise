@@ -40,7 +40,8 @@ class MeOut(BaseModel):
     id: uuid.UUID
     name: str
     email: str
-    role: Role
+    role: Role  # primary role: picks the default dashboard
+    roles: list[Role]  # every role held; an admin who is also a professor gets both views
     department_ids: list[uuid.UUID]
     professor_id: uuid.UUID | None
     memberships: list[MembershipOut]
@@ -61,6 +62,7 @@ def me(scope: ScopeDep) -> MeOut:
         name=u.name,
         email=u.email,
         role=scope.me.role,
+        roles=sorted(scope.me.roles, key=lambda r: list(Role).index(r)),
         department_ids=sorted(scope.me.department_ids),
         professor_id=scope.me.professor_id,
         memberships=[

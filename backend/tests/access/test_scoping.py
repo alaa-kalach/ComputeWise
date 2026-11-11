@@ -131,3 +131,65 @@ def test_require_helpers_return_404_outside_scope(session):
         with pytest.raises(HTTPException) as e:
             check(oid)
         assert e.value.status_code == 404
+
+
+# ---------------------------------------------------------------- the role rule (Nov 11 decision)
+def make_admin_also_professor(session) -> Group:
+    """Dana (department admin) is also given the professor role, with her own group."""
+    from app.models import Professor
+
+    prof = Professor(department_id=seed_id("dept"), user_id=seed_id("u_dana"))
+    session.add(prof)
+    session.flush()
+    lab = Group(professor_id=prof.id, name="Dana's Lab")
+    session.add(lab)
+    session.flush()
+    return lab
+
+
+def test_department_admin_alone_cannot_approve_or_issue(session):
+    dana = scope_for(session, "u_dana")
+    assert dana.me.roles == {"department_admin"}
+    for group in (FYP1, FYP2, LAB):  # sees every group ...
+        assert dana.require_group(group)
+        with pytest.raises(HTTPException) as e:  # ... but manages none of them
+            dana.require_manage_group(group)
+        assert e.value.status_code == 403
+
+
+def test_admin_with_professor_role_manages_only_her_own_groups(session):
+    lab = make_admin_also_professor(session)
+    dana = scope_for(session, "u_dana")
+    assert dana.me.roles == {"department_admin", "professor"}
+    assert dana.me.role == "department_admin"  # default dashboard
+
+    assert dana.require_manage_group(lab.id).id == lab.id  # her own group: yes
+    with pytest.raises(HTTPException) as e:
+        dana.require_manage_group(FYP1)  # Karim's group: still no
+    assert e.value.status_code == 403
+
+    # Visibility is the union: every department group plus her own.
+    assert {g.name for g in session.exec(dana.groups()).all()} == {"FYP Team 1", "FYP Team 2", "Research Lab", "Dana's Lab"}
+    assert dana.me.department_ids == {seed_id("dept")}
+
+
+def test_me_lists_combined_roles(client, session):
+    make_admin_also_professor(session)
+    me = client.get("/me", headers=auth("dana")).json()
+    assert me["role"] == "department_admin"
+    assert me["roles"] == ["department_admin", "professor"]
+    assert me["professor_id"] is not None
+
+    karim = client.get("/me", headers=auth("karim")).json()
+    assert karim["roles"] == ["professor"]
+    assert client.get("/me", headers=auth("sara")).json()["roles"] == ["user"]
+
+
+def test_require_role_accepts_any_held_role(session):
+    from app.core.auth import Role, require_role
+
+    make_admin_also_professor(session)
+    dana = scope_for(session, "u_dana").me
+    assert require_role(Role.professor)(dana) is dana
+    with pytest.raises(HTTPException):
+        require_role(Role.professor)(scope_for(session, "u_omar").me)

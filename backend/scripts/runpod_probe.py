@@ -3,6 +3,7 @@
 Run from backend/ with RUNPOD_API_KEY in .env:
     python -m scripts.runpod_probe            # asks before creating the pod
     python -m scripts.runpod_probe --dry-run  # read-only: GPU catalog, pod list, billing, errors
+    python -m scripts.runpod_probe --billing POD_ID   # later: has the pod's cost shown up yet?
 
 What it does (about 10-20 minutes, typically well under $0.25):
   1. lists GPU types with prices and picks the cheapest available one under --max-price
@@ -269,11 +270,34 @@ class Probe:
             self.rec.save("error_bad_key", bad.get("/pods"))
 
 
+def billing_check(pod_id: str, api_key: str, out_dir: Path, transport: httpx.BaseTransport | None) -> int:
+    """Re-read billing for a terminated pod to see how long RunPod takes to record the cost."""
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M")
+    with httpx.Client(base_url=BASE_URL, headers={"Authorization": f"Bearer {api_key}"},
+                      timeout=60, transport=transport) as c:
+        rec = Recorder(out_dir, step=90)
+        r1 = c.get("/billing/pods", params={"podId": pod_id, "bucketSize": "hour", "lastN": 24})
+        rec.save(f"billing_later_{stamp}_pod_hourly", r1)
+        r2 = c.get("/billing/pods", params={"podId": pod_id, "bucketSize": "day", "lastN": 2})
+        rec.save(f"billing_later_{stamp}_pod_daily", r2)
+    if r1.status_code != 200:
+        print(f"Billing call failed: HTTP {r1.status_code} {r1.text[:200]}")
+        return 1
+    body = r1.json()
+    total = body.get("metadata", {}).get("totals", {})
+    print(f"Pod {pod_id}: {len(body.get('records', []))} hourly record(s), totals {total}")
+    for r in body.get("records", []):
+        print(f"  {r.get('startTime')}  total ${r.get('totalAmount')}  gpu ${r.get('gpuAmount')}  disk ${r.get('diskAmount')}")
+    print(f"Saved to {out_dir}")
+    return 0
+
+
 def main(argv: list[str] | None = None, *, transport: httpx.BaseTransport | None = None,
          sleep: Callable[[float], None] = time.sleep, out_dir: Path = OUT_DIR, api_key: str | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true", help="read-only calls; never creates a pod")
     ap.add_argument("--yes", action="store_true", help="don't ask before creating the pod")
+    ap.add_argument("--billing", metavar="POD_ID", help="only read billing for an earlier pod (no cleanup of samples)")
     ap.add_argument("--max-price", type=float, default=0.50, help="max $/hour for the test GPU (default 0.50)")
     args = ap.parse_args(argv)
 
@@ -285,6 +309,8 @@ def main(argv: list[str] | None = None, *, transport: httpx.BaseTransport | None
         return 2
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    if args.billing:
+        return billing_check(args.billing, api_key, out_dir, transport)
     for old in out_dir.glob("*.json"):
         old.unlink()
     rec = Recorder(out_dir)
