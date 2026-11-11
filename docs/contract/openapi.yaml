@@ -36,6 +36,9 @@ tags:
   - name: credentials
   - name: department
   - name: pods
+  - name: escalations
+  - name: notifications
+  - name: reports
   - name: system
 
 paths:
@@ -582,6 +585,143 @@ paths:
           description: Not stopped, refused by the pre-launch check, or no GPU free on that machine
           content: {application/json: {schema: {$ref: "#/components/schemas/LaunchRefused"}}}
 
+  # ------------------------------------------------------------------ Person 3: escalations
+  /escalations:
+    get:
+      tags: [escalations]
+      summary: Escalations I may see, newest first
+      description: |
+        The agent's proposals waiting for a human decision, and past decisions.
+        A professor sees the ones addressed to him. The department admin sees the ones
+        addressed to the department. A student gets an empty list.
+      x-owner: person3
+      parameters:
+        - {name: status, in: query, required: false, schema: {$ref: "#/components/schemas/EscalationStatus"}}
+      responses:
+        "200":
+          description: Escalations
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Escalation"}}}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+
+  /escalations/{escalation_id}/approve:
+    parameters: [{$ref: "#/components/parameters/EscalationId"}]
+    post:
+      tags: [escalations]
+      summary: Approve and carry out the proposal (the recipient only)
+      description: |
+        Carries out the proposed action (stop the pod, disable the key, change the budget).
+        `escalate_to_department` has no action: approving it only acknowledges it.
+        If carrying it out fails, the escalation becomes `failed` and the error is in `result`.
+        Writes `escalation.approve` (or `escalation.fail`) to the audit log.
+      x-owner: person3
+      responses:
+        "200":
+          description: Decided
+          content: {application/json: {schema: {$ref: "#/components/schemas/Escalation"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: Already decided
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /escalations/{escalation_id}/reject:
+    parameters: [{$ref: "#/components/parameters/EscalationId"}]
+    post:
+      tags: [escalations]
+      summary: Reject the proposal, with an optional note (the recipient only)
+      description: Nothing is changed. Writes `escalation.reject` to the audit log.
+      x-owner: person3
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {type: object, properties: {note: {type: string, description: Why it was rejected}}}
+      responses:
+        "200":
+          description: Decided
+          content: {application/json: {schema: {$ref: "#/components/schemas/Escalation"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: Already decided
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  # ------------------------------------------------------------------ Person 3: notifications
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: Warnings for the groups I belong to, newest first
+      description: |
+        The budget warnings written by the agent (`warn_user`). A student sees his own
+        groups. A professor sees the groups he owns.
+      x-owner: person3
+      parameters:
+        - {name: unread_only, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        "200":
+          description: Notifications
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Notification"}}}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+
+  /notifications/{notification_id}/read:
+    parameters: [{$ref: "#/components/parameters/NotificationId"}]
+    post:
+      tags: [notifications]
+      summary: Mark a notification as read
+      x-owner: person3
+      responses:
+        "200":
+          description: Updated
+          content: {application/json: {schema: {$ref: "#/components/schemas/Notification"}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  # ------------------------------------------------------------------ Person 3: reports
+  /reports/weekly:
+    get:
+      tags: [reports]
+      summary: Weekly report, this week against the week before
+      description: |
+        Spend per professor and per group for the 7 days from `week_start`, against the 7
+        days before. Billable = paid with a department credential. Observed = a professor's
+        own credential (watched, not billed). The department sees every professor, a
+        professor only his own row. Students get 403.
+      x-owner: person3
+      parameters:
+        - {name: week_start, in: query, required: false, description: "Defaults to the last Monday. Format YYYY-MM-DD", schema: {type: string, format: date}}
+      responses:
+        "200":
+          description: The report
+          content: {application/json: {schema: {$ref: "#/components/schemas/WeeklyReport"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+
+  /reports/billing:
+    get:
+      tags: [reports]
+      summary: Monthly billing report, one row per professor
+      description: Department sees all professors, a professor only his own row. Students get 403.
+      x-owner: person3
+      parameters:
+        - {name: period, in: query, required: true, schema: {type: string, pattern: '^\d{4}-\d{2}$', examples: ["2026-11"]}}
+        - {name: format, in: query, required: false, description: "json (default) or csv (a file download)", schema: {type: string, enum: [json, csv], default: json}}
+      responses:
+        "200":
+          description: The report
+          content:
+            application/json: {schema: {$ref: "#/components/schemas/BillingReport"}}
+            text/csv: {schema: {type: string}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+
+  /reports/trend:
+    get:
+      tags: [reports]
+      summary: Spend per month, oldest first (department admin only)
+      x-owner: person3
+      responses:
+        "200":
+          description: One row per month
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/MonthTotal"}}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+
   # ------------------------------------------------------------------ placeholders for the others
   /keys:
     post:
@@ -625,6 +765,8 @@ components:
     GroupId: {name: group_id, in: path, required: true, schema: {type: string, format: uuid}}
     UserId: {name: user_id, in: path, required: true, schema: {type: string, format: uuid}}
     RequestId: {name: request_id, in: path, required: true, schema: {type: string, format: uuid}}
+    EscalationId: {name: escalation_id, in: path, required: true, schema: {type: string, format: uuid}}
+    NotificationId: {name: notification_id, in: path, required: true, schema: {type: string, format: uuid}}
     CredentialId: {name: credential_id, in: path, required: true, schema: {type: string, format: uuid}}
     PodId:
       name: pod_id
@@ -859,3 +1001,96 @@ components:
                 jupyter_url: {type: [string, "null"]}
                 jupyter_password: {type: [string, "null"], description: Owner only}
             gpu_util_percent: {type: [integer, "null"]}
+
+    EscalationStatus: {type: string, enum: [pending, approved, rejected, failed]}
+    EscalationKind: {type: string, enum: [propose_pod_stop, propose_key_disable, propose_budget_change, escalate_to_department]}
+    Escalation:
+      type: object
+      required: [id, kind, target, reason, recipient_type, status, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {$ref: "#/components/schemas/EscalationKind"}
+        target: {type: string, description: "Pod id, key id, 'team-b->team-a', or a professor id"}
+        reason: {type: string, description: "Four lines: ISSUE / EVIDENCE / PROPOSED ACTION / IF IGNORED"}
+        recipient_type: {type: string, enum: [professor, department]}
+        group_id: {type: [string, "null"], format: uuid}
+        status: {$ref: "#/components/schemas/EscalationStatus"}
+        created_at: {type: string, format: date-time}
+        decided_at: {type: [string, "null"], format: date-time}
+        note: {type: [string, "null"], description: The decider's note}
+        result: {type: [object, "null"], description: "What happened when approved, or the error when failed"}
+    Notification:
+      type: object
+      required: [id, group_id, message, level, read, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        group_id: {type: string, format: uuid}
+        message: {type: string, description: Names the top spenders and when the budget runs out}
+        level: {type: string, enum: [info, warning, critical]}
+        read: {type: boolean}
+        created_at: {type: string, format: date-time}
+    GroupWeek:
+      type: object
+      required: [group_id, this_week_usd, last_week_usd, change_pct]
+      properties:
+        group_id: {type: [string, "null"], format: uuid}
+        this_week_usd: {$ref: "#/components/schemas/Money"}
+        last_week_usd: {$ref: "#/components/schemas/Money"}
+        change_pct: {type: [number, "null"], description: Null when last week was zero}
+    ProfessorWeek:
+      type: object
+      required: [professor_id, professor_name, this_week_usd, last_week_usd, change_pct, billable_usd, observed_usd, groups]
+      properties:
+        professor_id: {type: string, format: uuid}
+        professor_name: {type: string}
+        this_week_usd: {$ref: "#/components/schemas/Money"}
+        last_week_usd: {$ref: "#/components/schemas/Money"}
+        change_pct: {type: [number, "null"]}
+        billable_usd: {$ref: "#/components/schemas/Money"}
+        observed_usd: {$ref: "#/components/schemas/Money"}
+        groups: {type: array, items: {$ref: "#/components/schemas/GroupWeek"}}
+    WeeklyReport:
+      type: object
+      required: [week_start, rows, totals, escalations]
+      properties:
+        week_start: {type: string, format: date}
+        rows: {type: array, items: {$ref: "#/components/schemas/ProfessorWeek"}}
+        totals:
+          type: object
+          required: [this_week_usd, last_week_usd, change_pct]
+          properties:
+            this_week_usd: {$ref: "#/components/schemas/Money"}
+            last_week_usd: {$ref: "#/components/schemas/Money"}
+            change_pct: {type: [number, "null"]}
+        escalations:
+          type: object
+          description: This week's escalations by status
+          additionalProperties: {type: integer}
+    BillingRow:
+      type: object
+      required: [professor_id, professor_name, billable, observed, unassigned, total, openrouter, runpod]
+      properties:
+        professor_id: {type: string}
+        professor_name: {type: string}
+        billable: {$ref: "#/components/schemas/Money"}
+        observed: {$ref: "#/components/schemas/Money"}
+        unassigned: {$ref: "#/components/schemas/Money"}
+        total: {$ref: "#/components/schemas/Money"}
+        openrouter: {$ref: "#/components/schemas/Money"}
+        runpod: {$ref: "#/components/schemas/Money"}
+    BillingReport:
+      type: object
+      required: [period, rows, totals]
+      properties:
+        period: {type: string, examples: ["2026-11"]}
+        rows: {type: array, items: {$ref: "#/components/schemas/BillingRow"}}
+        totals: {$ref: "#/components/schemas/BillingRow"}
+    MonthTotal:
+      type: object
+      required: [period, billable, observed, unassigned, total]
+      properties:
+        period: {type: string}
+        billable: {$ref: "#/components/schemas/Money"}
+        observed: {$ref: "#/components/schemas/Money"}
+        unassigned: {$ref: "#/components/schemas/Money"}
+        total: {$ref: "#/components/schemas/Money"}
