@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/keys/does-not-exist",
+    "body": null
+  },
+  "status": 404,
+  "response": {
+    "error": {
+      "message": "API key not found",
+      "code": 404
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "request": {
+    "method": "DELETE",
+    "path": "/keys/5a20f9b4c88bb244c9f8503665931b3cecea57992b9b231191811941f817148b",
+    "body": null
+  },
+  "status": 200,
+  "response": {
+    "deleted": true
+  }
+}
