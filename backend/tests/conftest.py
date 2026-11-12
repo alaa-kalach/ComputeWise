@@ -122,6 +122,7 @@ EMAILS = {
     "sara": "sara.mansour@students.example.edu",  # FYP Team 1 AND Research Lab
     "omar": "omar.itani@students.example.edu",  # FYP Team 1
     "lina": "lina.saleh@students.example.edu",  # FYP Team 2
+    "jad": "jad.fares@students.example.edu",  # FYP Team 2 (pending OpenRouter request)
     "maya": "maya.aoun@students.example.edu",  # Research Lab
 }
 

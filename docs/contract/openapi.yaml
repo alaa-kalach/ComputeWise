@@ -325,6 +325,9 @@ paths:
         "422":
           description: The provider rejected the secret (checked with one read-only call)
           content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+        "503":
+          description: The provider could not be reached to check the secret; try again
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
 
   /credentials/{credential_id}:
     parameters: [{$ref: "#/components/parameters/CredentialId"}]

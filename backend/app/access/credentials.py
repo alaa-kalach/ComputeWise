@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.adapters import AdapterError, NotSupported, ProviderUnavailable, get_adapter
+from app.adapters import AdapterError, NotSupported, ProviderAdapter, ProviderUnavailable, get_adapter
 from app.core.audit import write_audit
 from app.core.crypto import decrypt, encrypt
 from app.core.money import Money, NonNegativeMoney
@@ -214,6 +214,16 @@ def resolve_credential(session: Session, professor_id: uuid.UUID, provider: Prov
         grant_ceiling_usd=ceiling,
         secret=decrypt(cred.secret_encrypted),
     )
+
+
+def adapter_for_credential(session: Session, credential_id: uuid.UUID) -> ProviderAdapter | None:
+    """Adapter for the credential a resource was ISSUED under (which may differ from the
+    professor's current binding). None if that credential was revoked: its keys and pods
+    are the revoke cascade's job."""
+    cred = session.get(ProviderCredential, credential_id)
+    if cred is None or cred.status != CredentialStatus.active:
+        return None
+    return get_adapter(cred.provider, decrypt(cred.secret_encrypted))
 
 
 # ====================================================================== internals
@@ -613,6 +623,7 @@ def set_binding(provider: Provider, body: BindingIn, scope: ScopeDep) -> Binding
 
 __all__ = [
     "CredentialRevoked",
+    "adapter_for_credential",
     "CredentialUnavailable",
     "ResolvedCredential",
     "on_credential_revoked",

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlmodel import select
 
-from app.access import credentials, groups
+from app.access import credentials, groups, requests
 from app.core.auth import Role
 from app.core.config import get_settings
 from app.core.scoping import ScopeDep
@@ -74,3 +74,4 @@ def me(scope: ScopeDep) -> MeOut:
 
 app.include_router(groups.router)
 app.include_router(credentials.router)
+app.include_router(requests.router)

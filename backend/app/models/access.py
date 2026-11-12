@@ -30,6 +30,8 @@ class AccessRequest(SQLModel, table=True):
     group_id: uuid.UUID = Field(foreign_key="groups.id")
     provider: Provider = Field(sa_type=enum_type(Provider))
     justification: str | None = Field(default=None, sa_type=sa.Text)
+    # Added in migration 0002: the professor's reason when rejecting (optional).
+    reason: str | None = Field(default=None, sa_type=sa.Text)
     status: RequestStatus = Field(
         default=RequestStatus.pending,
         sa_type=enum_type(RequestStatus),

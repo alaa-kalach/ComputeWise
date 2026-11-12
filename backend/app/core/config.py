@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # and for tests. Leave empty for projects using the newer signing keys.
     supabase_jwt_secret: str = ""
     jwt_audience: str = "authenticated"
+    # Server-side only (never in the frontend). Lets the backend send a Supabase invite
+    # when a professor adds a student whose email is new (A5). Empty = no invite is sent;
+    # the person can then be invited from the Supabase dashboard.
+    supabase_service_role_key: str = ""
 
     # Frontend origins allowed to call the API from a browser (comma-separated).
     cors_origins: str = "http://localhost:5173"
