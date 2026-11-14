@@ -185,7 +185,9 @@ def load_current_user(session: Session, user: User) -> CurrentUser:
     admin_of = frozenset(
         session.exec(select(DepartmentAdmin.department_id).where(DepartmentAdmin.user_id == user.id)).all()
     )
-    prof = session.exec(select(Professor).where(Professor.user_id == user.id)).first()
+    prof = session.exec(
+        select(Professor).where(Professor.user_id == user.id, Professor.removed_at.is_(None))  # type: ignore[union-attr]
+    ).first()
 
     roles: set[Role] = set()
     if admin_of:

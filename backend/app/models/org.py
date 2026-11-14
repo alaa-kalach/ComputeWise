@@ -49,6 +49,10 @@ class Professor(SQLModel, table=True):
     department_id: uuid.UUID = Field(foreign_key="departments.id", index=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", unique=True)
     created_at: datetime = created_at_field()
+    # Added in migration 0003 (A10): set when the department removes him. The row stays so
+    # his groups' ledger history keeps pointing somewhere; he no longer has the professor
+    # role. Adding him again clears it.
+    removed_at: datetime | None = Field(default=None, sa_type=sa.DateTime(timezone=True))
 
 
 class Group(SQLModel, table=True):
