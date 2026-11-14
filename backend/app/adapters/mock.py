@@ -50,6 +50,9 @@ GPU_PRICES: dict[str, Decimal] = {
     "H100 PCIe": Decimal("2.39"),
 }
 DEFAULT_GPU = "RTX A4000"
+MOCK_VRAM = {"RTX A4000": 16, "RTX A5000": 24, "RTX 4090": 24, "A100 PCIe": 80, "H100 PCIe": 80}
+# Shown in the mock catalog with availability "none"; launching one fails with NoCapacity.
+MOCK_UNAVAILABLE = {"H100 PCIe"}
 STORAGE_PER_GB_MONTH = Decimal("0.10")
 HOURS_PER_MONTH = Decimal("730")
 CENT4 = Decimal("0.0001")
@@ -199,15 +202,19 @@ class MockRunPodAdapter(_MockBase):
     supports_limits = False
 
     def estimate_hourly_cost(self, spec: dict[str, Any]) -> Decimal:
-        gpu = spec.get("gpu_type", DEFAULT_GPU)
+        gpu = spec.get("gpu_type") or spec.get("gpu_type_id") or DEFAULT_GPU
         count = int(spec.get("gpu_count", 1))
         return GPU_PRICES.get(gpu, GPU_PRICES[DEFAULT_GPU]) * count
 
     def issue(self, request: IssueRequest) -> IssuedAccess:
         self._world.check()
         spec = request.spec
-        gpu = spec.get("gpu_type", DEFAULT_GPU)
-        disk_gb = int(spec.get("disk_gb", 20))
+        gpu = spec.get("gpu_type") or spec.get("gpu_type_id") or DEFAULT_GPU
+        if gpu in MOCK_UNAVAILABLE:
+            from app.adapters.runpod import NoCapacity
+
+            raise NoCapacity(f"mock: no {gpu} free")
+        disk_gb = int(spec.get("disk_gb", spec.get("volume_gb", 20)))
         cost = self.estimate_hourly_cost(spec)
         storage = _round(disk_gb * STORAGE_PER_GB_MONTH / HOURS_PER_MONTH)
         ref = "mockpod-" + secrets.token_hex(6)
@@ -236,6 +243,48 @@ class MockRunPodAdapter(_MockBase):
 
     def set_limit(self, external_ref: str, limit_usd: Decimal) -> None:
         raise NotSupported("runpod has no per-pod spend limit; the watchdog stops pods instead")
+
+    # -- RunPod-only calls the real adapter has (B4, Person 1) ---------------------------
+    def list_gpus(self, cloud: str) -> list[Any]:
+        """Same shape as RunPodAdapter.list_gpus. Every GPU in GPU_PRICES on both clouds,
+        same price; MOCK_UNAVAILABLE ones have availability "none"."""
+        from app.adapters.runpod import GpuOffer
+
+        self._world.check()
+        return sorted(
+            (
+                GpuOffer(
+                    gpu_type_id=name, name=name, vram_gb=MOCK_VRAM.get(name, 0), cloud=cloud,
+                    price_per_hour=price, availability="none" if name in MOCK_UNAVAILABLE else "high",
+                    max_count=1,
+                )
+                for name, price in GPU_PRICES.items()
+                if name != "CPU"
+            ),
+            key=lambda o: (o.price_per_hour, o.name),
+        )
+
+    def pod_status(self, external_ref: str) -> Any:
+        """Same shape as RunPodAdapter.pod_status. A mock pod is ready as soon as it runs."""
+        from app.adapters.runpod import PodStatus
+
+        self._world.check()
+        r = self._mine(external_ref)
+        if r.state is ResourceState.gone:
+            raise ResourceNotFound(external_ref)
+        running = r.state is ResourceState.active
+        return PodStatus(
+            external_ref=external_ref,
+            status="RUNNING" if running else "EXITED",
+            ready=running,
+            started_at=self._world.now if running else None,
+            cost_per_hr=r.cost_per_hr,
+            ssh_proxy=f"ssh {external_ref}-mock@ssh.runpod.io",
+            ssh_direct=f"ssh root@{external_ref}.mock.runpod.net -p 22" if running else None,
+            jupyter_url=f"https://{external_ref}-8888.proxy.runpod.net" if running else None,
+            jupyter_password="mock-jupyter-password" if running else None,
+            gpu_util_percent=0 if running else None,
+        )
 
 
 def _demo() -> None:

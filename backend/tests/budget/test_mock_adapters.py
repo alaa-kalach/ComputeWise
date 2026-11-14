@@ -112,7 +112,8 @@ def test_outage(ork, world):
 def test_factory():
     assert get_adapter(Provider.openrouter, "s", mode="mock").supports_limits
     assert not get_adapter(Provider.runpod, "s", mode="mock").supports_limits
-    with pytest.raises(NotSupported):  # RunPod's real adapter is not written yet (the OpenRouter one is)
-        get_adapter(Provider.runpod, "s", mode="real")
+    from app.adapters.runpod import RunPodAdapter  # B4: the real RunPod adapter exists now
+
+    assert isinstance(get_adapter(Provider.runpod, "s", mode="real"), RunPodAdapter)
     with pytest.raises(ValueError):
         get_adapter(Provider.runpod, "", mode="mock")
