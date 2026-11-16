@@ -120,9 +120,11 @@ def professor_totals(
         e for e in rows
         if e.scope_type == ScopeType.professor and e.scope_id == professor_id and e.type in FUNDING
     )
+
     allocated = _sum(
         e for e in rows
-        if e.scope_type == ScopeType.group and e.group_id in groups and e.type == LedgerType.allocation
+        if e.scope_type == ScopeType.group and e.group_id in groups
+        and e.type in (LedgerType.allocation, LedgerType.adjustment)
     )
     spent = -_sum(e for e in rows if e.group_id in groups and e.type == LedgerType.spend)
     return ProfessorTotals(funded, spent, allocated)

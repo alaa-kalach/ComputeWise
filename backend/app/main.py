@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from app.access import credentials, department, groups, pods, requests
+from app.budget import api as budget_api
 from app.core.auth import Role
 from app.core.config import get_settings
 from app.core.scoping import ScopeDep
@@ -77,3 +78,4 @@ app.include_router(credentials.router)
 app.include_router(requests.router)
 app.include_router(pods.router)
 app.include_router(department.router)
+app.include_router(budget_api.router)

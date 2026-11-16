@@ -1344,7 +1344,7 @@ components:
               required: [label, billable]
               properties:
                 label: {type: string}
-                billable: {type: boolean}
+              billable: {type: [boolean, "null"], description: "null = mixed: one provider billable, the other observed"}
             - {type: "null"}
     ProfessorBudgetSummary:
       type: object

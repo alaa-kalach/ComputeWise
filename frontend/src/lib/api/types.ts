@@ -154,7 +154,7 @@ export interface GroupBudget {
   policy: BudgetPolicy | null; // null = no budget set yet
   rolled_over: Money;
   by_provider: { openrouter: Money; runpod: Money };
-  funding: { label: string; billable: boolean } | null;
+  funding: { label: string; billable: boolean | null } | null;
 }
 
 /** GET /budget/summary */

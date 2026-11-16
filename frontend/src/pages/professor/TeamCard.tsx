@@ -41,7 +41,7 @@ export function TeamCard({
 
       <p className="muted" style={{ marginBottom: "var(--s3)" }}>
         {usd(by_provider.openrouter)} on models · {usd(by_provider.runpod)} on GPU pods
-        {funding && ` · Paid by ${funding.label} (${funding.billable ? "billable" : "observed"})`}
+      {funding && ` · Paid by ${funding.label}${funding.billable === null ? "" : ` (${funding.billable ? "billable" : "observed"})`}`}
       </p>
 
       {out && (
