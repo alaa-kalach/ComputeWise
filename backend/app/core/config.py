@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     # when a professor adds a student whose email is new (A5). Empty = no invite is sent;
     # the person can then be invited from the Supabase dashboard.
     supabase_service_role_key: str = ""
-
+    # Shared secret for the job endpoints (/jobs/sync, /jobs/rollover). pg_cron sends it in
+    # the X-Job-Secret header. Empty = the job endpoints refuse every call.
+    job_secret: str = ""
+    
     # Frontend origins allowed to call the API from a browser (comma-separated).
     cors_origins: str = "http://localhost:5173"
 
