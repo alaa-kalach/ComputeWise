@@ -77,3 +77,5 @@ export const approveRequest = (id: string) => api<AccessRequest>("POST", `/acces
 export const rejectRequest = (id: string, reason?: string) =>
   api<AccessRequest>("POST", `/access-requests/${id}/reject`, { reason });
 export const revokeKey = (id: string) => api<void>("POST", `/keys/${id}/revoke`);
+export const correctTeam = (group_id: string, amount: Money, note: string) =>
+  api<GroupBudget>("POST", `/groups/${group_id}/corrections`, { amount, note });

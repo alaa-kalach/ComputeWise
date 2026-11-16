@@ -243,6 +243,15 @@ const routes: [string, RegExp, Route][] = [
     world.ledger.push({ group_id: m[1], user: null, type: "adjustment", amount: money(amount) });
     return budgetFor(m[1], null);
   }],
+  ["POST", /^\/groups\/([^/]+)\/corrections$/, (m, body) => {
+    const p = requireManage(m[1]);
+    const amount = units(body.amount);
+    if (!Number.isFinite(amount) || amount === 0) fail(422, "The correction can't be 0");
+    if (!body.note?.trim()) fail(422, "Write what the mistake was");
+    if (amount > 0) checkCeiling(p, amount); // adding money counts against the ceiling, removing never does
+    world.ledger.push({ group_id: m[1], user: null, type: "adjustment", amount: money(amount) });
+    return budgetFor(m[1], null);
+  }],
   ["GET", /^\/groups\/([^/]+)$/, (m) => {
     const p = me();
     if (!seesGroup(p, m[1])) fail(404, "Group not found");

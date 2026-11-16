@@ -36,6 +36,7 @@ tags:
   - name: credentials
   - name: department
   - name: pods
+  - name: budgets
   - name: escalations
   - name: notifications
   - name: reports
@@ -757,6 +758,208 @@ paths:
         "403": {description: "No approved OpenRouter access in this group", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
         "409": {description: "Key already issued", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
 
+  # ------------------------------------------------------------------ budgets (A4, B10) — Person 2
+  /budget/summary:
+    get:
+      tags: [budgets]
+      summary: The professor's month at a glance (professor)
+      x-owner: person2
+      responses:
+        "200":
+          description: This month's totals over all his groups
+          content: {application/json: {schema: {$ref: "#/components/schemas/ProfessorBudgetSummary"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+
+  /groups/{group_id}/budget:
+    parameters: [{$ref: "#/components/parameters/GroupId"}]
+    get:
+      tags: [budgets]
+      summary: A group's budget this month, as the caller sees it
+      description: |
+        A member gets the team totals and his own sub-budget (`mine`, D9). The professor and
+        the department get the team totals; `mine` is null for them.
+      x-owner: person2
+      responses:
+        "200":
+          description: The budget
+          content: {application/json: {schema: {$ref: "#/components/schemas/GroupBudget"}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  /groups/{group_id}/budget-policy:
+    parameters: [{$ref: "#/components/parameters/GroupId"}]
+    put:
+      tags: [budgets]
+      summary: Set a group's monthly budget and rollover (its professor)
+      description: |
+        Applies to the current month at once: the difference from what is already allocated
+        this month is written as one `allocation` entry (+ or -).
+      x-owner: person2
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/BudgetPolicy"}}}
+      responses:
+        "200":
+          description: Saved; the group's updated budget
+          content: {application/json: {schema: {$ref: "#/components/schemas/GroupBudget"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: More than the professor has left to give (his ceiling or the grant ceiling)
+          content: {application/json: {schema: {$ref: "#/components/schemas/OverAllocation"}}}
+
+  /groups/{group_id}/member-budgets:
+    parameters: [{$ref: "#/components/parameters/GroupId"}]
+    get:
+      tags: [budgets]
+      summary: Each member's spend and personal limit this month (its professor)
+      x-owner: person2
+      responses:
+        "200":
+          description: One row per member
+          content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/MemberBudget"}}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  /groups/{group_id}/members/{user_id}/budget-policy:
+    parameters:
+      - {$ref: "#/components/parameters/GroupId"}
+      - {$ref: "#/components/parameters/UserId"}
+    put:
+      tags: [budgets]
+      summary: Set or remove a member's personal limit inside the team budget (its professor)
+      description: "`monthly_amount: null` removes the limit: he shares the team budget again (D9)."
+      x-owner: person2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [monthly_amount]
+              properties:
+                monthly_amount: {$ref: "#/components/schemas/MoneyOrNull"}
+      responses:
+        "200":
+          description: Saved
+          content: {application/json: {schema: {$ref: "#/components/schemas/MemberBudget"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: More than the team's budget
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /groups/{group_id}/top-ups:
+    parameters: [{$ref: "#/components/parameters/GroupId"}]
+    post:
+      tags: [budgets]
+      summary: Add money to a group this month (its professor)
+      description: |
+        Writes one `adjustment` entry with the note. Reopens a capped group at the next sync.
+        Counts against the professor's ceiling like an allocation.
+      x-owner: person2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, note]
+              properties:
+                amount: {$ref: "#/components/schemas/Money", description: More than 0}
+                note: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        "201":
+          description: Added; the group's updated budget
+          content: {application/json: {schema: {$ref: "#/components/schemas/GroupBudget"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: More than the professor has left to give
+          content: {application/json: {schema: {$ref: "#/components/schemas/OverAllocation"}}}
+        "422":
+          description: Amount not above 0, or no note
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  /groups/{group_id}/corrections:
+    parameters: [{$ref: "#/components/parameters/GroupId"}]
+    post:
+      tags: [budgets]
+      summary: Fix a mistake in a group's ledger (its professor)
+      description: |
+        Writes one `adjustment` entry, + or -, with the reason. The ledger is append-only, so a
+        mistake is never edited; it is corrected (D8).
+      x-owner: person2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, note]
+              properties:
+                amount: {$ref: "#/components/schemas/Money", description: Not 0; negative removes money}
+                note: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        "201":
+          description: Recorded; the group's updated budget
+          content: {application/json: {schema: {$ref: "#/components/schemas/GroupBudget"}}}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409":
+          description: A positive correction over what the professor has left to give
+          content: {application/json: {schema: {$ref: "#/components/schemas/OverAllocation"}}}
+        "422":
+          description: Amount is 0, or no note
+          content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+
+  # ------------------------------------------------------------------ jobs (B5, B7) — Person 2
+  /jobs/sync:
+    post:
+      tags: [system]
+      summary: Pull usage from the providers and record spend (pg_cron, every 5 minutes)
+      description: |
+        Called by pg_cron, or by hand ("Sync now", D4). Not a user endpoint: no Bearer token,
+        it needs the `X-Job-Secret` header. A database lock stops overlapping runs.
+      x-owner: person2
+      security: []
+      parameters:
+        - {name: X-Job-Secret, in: header, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Done
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resources_polled, spend_entries, skipped]
+                properties:
+                  resources_polled: {type: integer}
+                  spend_entries: {type: integer}
+                  skipped: {type: boolean, description: True if another sync was still running}
+        "401": {description: "Missing or wrong job secret", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
+  /jobs/rollover:
+    post:
+      tags: [system]
+      summary: Carry last month's unused budget into this month (pg_cron, 1st of the month)
+      description: Writes at most one `rollover` entry per budget, never more than its cap (D2). Safe to call twice.
+      x-owner: person2
+      security: []
+      parameters:
+        - {name: X-Job-Secret, in: header, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Done
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [period, rollover_entries]
+                properties:
+                  period: {type: string, description: The month money was carried INTO}
+                  rollover_entries: {type: integer}
+        "401": {description: "Missing or wrong job secret", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+
 components:
   securitySchemes:
     bearer:
@@ -1097,3 +1300,74 @@ components:
         observed: {$ref: "#/components/schemas/Money"}
         unassigned: {$ref: "#/components/schemas/Money"}
         total: {$ref: "#/components/schemas/Money"}
+
+    # ------------------------------------------------------------------ budgets (Person 2)
+    Totals:
+      type: object
+      required: [funded, spent, remaining]
+      properties:
+        funded: {$ref: "#/components/schemas/Money", description: "allocations + rollover + adjustments this month"}
+        spent: {$ref: "#/components/schemas/Money"}
+        remaining: {$ref: "#/components/schemas/Money"}
+    BudgetPolicy:
+      type: object
+      required: [monthly_amount, rollover, rollover_cap]
+      properties:
+        monthly_amount: {$ref: "#/components/schemas/Money"}
+        rollover: {type: boolean}
+        rollover_cap: {$ref: "#/components/schemas/MoneyOrNull", description: "null = default, 1 x monthly_amount (D2)"}
+    GroupBudget:
+      type: object
+      required: [group_id, period, team, mine, available, policy, rolled_over, by_provider, funding]
+      properties:
+        group_id: {type: string, format: uuid}
+        period: {type: string, examples: ["2026-11"]}
+        team: {$ref: "#/components/schemas/Totals"}
+        mine:
+          description: The caller's own sub-budget in this group (D9); null if none
+          oneOf: [{$ref: "#/components/schemas/Totals"}, {type: "null"}]
+        available: {$ref: "#/components/schemas/Money", description: "What the caller can still spend here: min(team, mine)"}
+        policy:
+          description: null = no budget set yet
+          oneOf: [{$ref: "#/components/schemas/BudgetPolicy"}, {type: "null"}]
+        rolled_over: {$ref: "#/components/schemas/Money", description: Carried in from last month}
+        by_provider:
+          type: object
+          required: [openrouter, runpod]
+          properties:
+            openrouter: {$ref: "#/components/schemas/Money"}
+            runpod: {$ref: "#/components/schemas/Money"}
+        funding:
+          description: Who pays; a department credential is billable. null if no credential is bound
+          oneOf:
+            - type: object
+              required: [label, billable]
+              properties:
+                label: {type: string}
+                billable: {type: boolean}
+            - {type: "null"}
+    ProfessorBudgetSummary:
+      type: object
+      required: [period, ceiling, allocated, unallocated, spent, last_synced_at]
+      properties:
+        period: {type: string}
+        ceiling: {$ref: "#/components/schemas/MoneyOrNull", description: null = tracking only (D1)}
+        allocated: {$ref: "#/components/schemas/Money", description: Given to his groups this month}
+        unallocated: {$ref: "#/components/schemas/MoneyOrNull", description: "ceiling - allocated; null = tracking only"}
+        spent: {$ref: "#/components/schemas/Money"}
+        last_synced_at: {type: [string, "null"], format: date-time}
+    MemberBudget:
+      type: object
+      required: [user_id, spent, limit]
+      properties:
+        user_id: {type: string, format: uuid}
+        spent: {$ref: "#/components/schemas/Money", description: This month, in this group}
+        limit:
+          description: His personal limit inside the team budget; null = shares the team budget
+          oneOf: [{$ref: "#/components/schemas/Totals"}, {type: "null"}]
+    OverAllocation:
+      type: object
+      required: [detail, unallocated]
+      properties:
+        detail: {type: string, examples: ["That's more than you have left to give: $280.00."]}
+        unallocated: {$ref: "#/components/schemas/Money", description: What he can still give}

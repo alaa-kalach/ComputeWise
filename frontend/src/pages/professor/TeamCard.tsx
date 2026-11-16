@@ -5,6 +5,7 @@ import type { Group, GroupBudget, Money } from "../../lib/api/types";
 import { budgetLevel, usd } from "../../lib/money";
 import { EditBudgetModal } from "./modals/EditBudgetModal";
 import { TopUpModal } from "./modals/TopUpModal";
+import { CorrectionModal } from "./modals/CorrectionModal";
 
 export function TeamCard({
   group,
@@ -17,7 +18,7 @@ export function TeamCard({
   unallocated: Money | null;
   onChange: () => Promise<void>;
 }) {
-  const [open, setOpen] = useState<"topup" | "edit" | "members" | null>(null);
+  const [open, setOpen] = useState<"topup" | "edit" | "members" | "correct" | null>(null);
   const done = async () => {
     setOpen(null);
     await onChange();
@@ -53,6 +54,7 @@ export function TeamCard({
         <Button variant={out ? "primary" : "secondary"} onClick={() => setOpen("topup")}>Top up</Button>
         <Button onClick={() => setOpen("edit")}>Edit budget</Button>
         <Button onClick={() => setOpen("members")}>Members</Button>
+        <Button variant="quiet" onClick={() => setOpen("correct")}>Adjust balance</Button>
       </div>
 
       <TopUpModal open={open === "topup"} group={group} unallocated={unallocated}
@@ -61,6 +63,8 @@ export function TeamCard({
         onClose={() => setOpen(null)} onDone={done} />
       <MembersModal open={open === "members"} group={group}
         onClose={() => setOpen(null)} onChange={onChange} />
+      <CorrectionModal open={open === "correct"} group={group} unallocated={unallocated}
+        onClose={() => setOpen(null)} onDone={done} />
     </section>
   );
 }
