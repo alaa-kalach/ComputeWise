@@ -954,10 +954,12 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [period, rollover_entries]
+                required: [period, rollover_entries, allocation_entries, skipped]
                 properties:
-                  period: {type: string, description: The month money was carried INTO}
+                  period: {type: string, description: The month that just started}
                   rollover_entries: {type: integer}
+                  allocation_entries: {type: integer, description: Monthly budgets written for this month}
+                  skipped: {type: boolean, description: True if another run was still going}
         "401": {description: "Missing or wrong job secret", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
 
 components:

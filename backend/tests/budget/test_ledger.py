@@ -152,11 +152,13 @@ def test_50_unused_in_month_1_is_100_in_month_2():
     assert team_totals(m2, TEAM, M2).remaining == D("100")
 
 
-def test_cap_stops_unlimited_accumulation():
-    assert rollover_amount(D("100"), D("50"), True, D("100")) == D("50")
-    assert rollover_amount(D("100"), D("50"), True, None) == D("100")
-
-
+def test_cap_limits_the_amount_carried():
+    """D2: the cap is the most that carries over; no cap = at most one month's budget."""
+    assert rollover_amount(D("100"), D("50"), True, D("100")) == D("100")
+    assert rollover_amount(D("200"), D("50"), True, D("100")) == D("100")
+    assert rollover_amount(D("100"), D("50"), True, None) == D("50")
+    assert rollover_amount(D("30"), D("50"), True, None) == D("30")
+    
 def test_no_rollover_and_no_debt():
     assert rollover_amount(D("30"), D("50"), False, None) == 0
     assert rollover_amount(D("-2"), D("50"), True, None) == 0

@@ -1,12 +1,11 @@
 """Month-end rollover. The POST /jobs/rollover endpoint (B7) calls plan_rollover() and
 saves what it returns.
 
-Rule (proposed in docs/decisions.md, "rollover cap"):
-    carry = what was left unused this month, if rollover is on (never negative)
-    the cap limits the TOTAL a team can start a month with:
-        carry <= rollover_cap - monthly_amount
-So FYP Team 1 ($50/month, cap $100) that spends nothing has $100 in month 2, and still
-$100 (not $150) in month 3 if it again spends nothing. No cap means unlimited carry.
+Rule (docs/decisions.md, D2): the cap limits the AMOUNT CARRIED, not the total.
+    carry = what was left unused this month, if rollover is on (never negative),
+            but at most rollover_cap; with no cap, at most one month's budget
+So FYP Team 1 ($50/month, no cap) that spends nothing has $100 in month 2, and still $100
+(not $150) in month 3: a team never holds more than twice its monthly budget by default.
 
 What carries:
     group      its remaining money
@@ -37,13 +36,12 @@ from app.models import BudgetPolicy, LedgerEntry, LedgerType, ScopeType
 def rollover_amount(
     remaining: Decimal, monthly_amount: Decimal | None, rollover: bool, cap: Decimal | None
 ) -> Decimal:
-    """How much carries into next month for one budget."""
+    """How much carries into next month for one budget (D2): what was left unused, at most
+    the cap; with no cap, at most one month's budget. Never negative (overspend is no debt)."""
     if not rollover or monthly_amount is None:
         return ZERO
-    carry = max(ZERO, money(remaining))
-    if cap is not None:
-        carry = min(carry, max(ZERO, money(cap) - money(monthly_amount)))
-    return money(carry)
+    limit = money(cap) if cap is not None else money(monthly_amount)
+    return money(min(max(ZERO, money(remaining)), limit))
 
 
 def plan_rollover(
