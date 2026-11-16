@@ -85,7 +85,7 @@ export interface World {
   userPolicies: Record<string, string>;
   teamPolicies: Record<string, BudgetPolicy>;
   requests: AccessRequest[];
-  keys: (KeySummary & { user: string })[];
+  keys: (Omit<KeySummary, "user_id" | "user_name"> & { user: string })[];
   pods: (Pod & { user: string; ready_at: number | null; jupyter: boolean })[];
   suspended: Set<string>; // `${group}:${user}`
 }

@@ -1,20 +1,36 @@
 import { useEffect } from "react";
-
+import { RequestsSection } from "./RequestsSection";
 import { Loading, Notice } from "../../components/ui";
-import { getBudgetSummary, getGroupBudget, listGroups } from "../../lib/api/endpoints";
+import { listPods, listMyKeys, listAccessRequests, getBudgetSummary, getGroupBudget, listGroups } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth";
 import { useAsync } from "../../lib/useAsync";
 import { SummaryRow } from "./SummaryRow";
 import { TeamCard } from "./TeamCard";
+import { ResourcesSection } from "./ResourcesSection";
+import { EscalationsSlot } from "./EscalationsSlot";
 
 export function ProfessorDashboard() {
   const { me } = useAuth();
 
   const { data, error, loading, reload } = useAsync(async () => {
-    const [summary, groups] = await Promise.all([getBudgetSummary(), listGroups()]);
+    const [summary, groups, pending, keys, pods] = await Promise.all([
+      getBudgetSummary(),
+      listGroups(),
+      listAccessRequests({ status: "pending" }),
+      listMyKeys(),
+      listPods(),
+    ]);
     const mine = groups.filter((g) => g.professor_id === me?.professor_id);
+    const ids = new Set(mine.map((g) => g.id));
     const budgets = await Promise.all(mine.map((g) => getGroupBudget(g.id)));
-    return { summary, teams: mine.map((group, i) => ({ group, budget: budgets[i] })) };
+    return {
+      summary,
+      groups: mine,
+      teams: mine.map((group, i) => ({ group, budget: budgets[i] })),
+      requests: pending.filter((r) => ids.has(r.group_id)),
+      keys: keys.filter((k) => ids.has(k.group_id)),
+      pods: pods.filter((p) => ids.has(p.group_id)),
+    };
   }, [me?.professor_id]);
 
   useEffect(() => {
@@ -44,10 +60,15 @@ export function ProfessorDashboard() {
             unallocated={data.summary.unallocated} onChange={reload} />
         ))
       )}
+
+      <EscalationsSlot />
+
+      <RequestsSection requests={data.requests} onChange={reload} />
+
+      <ResourcesSection teams={data.groups} keys={data.keys} pods={data.pods} onChange={reload} />
     </>
   );
 }
-
 function monthName(period: string): string {
   return new Date(`${period}-01T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }

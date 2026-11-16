@@ -330,7 +330,7 @@ const routes: [string, RegExp, Route][] = [
     }
     return memberBudget(m[1], key);
   }],
-  
+
   ["GET", /^\/access-requests$/, (_m, _b, query) => {
     const p = me();
     let rows = world.requests.filter(
@@ -361,11 +361,36 @@ const routes: [string, RegExp, Route][] = [
     world.requests.push(req);
     return req;
   }],
-
+  ["POST", /^\/access-requests\/([^/]+)\/(approve|reject)$/, (m, body) => {
+    const req = world.requests.find((r) => r.id === m[1]) ?? fail(404, "Request not found");
+    const p = requireManage(req.group_id);
+    if (req.status !== "pending") fail(409, "This request was already decided");
+    req.status = m[2] === "approve" ? "approved" : "rejected";
+    req.reason = m[2] === "reject" ? body.reason?.trim() || null : null;
+    req.decided_by_name = p.name;
+    req.decided_at = new Date().toISOString();
+    return req;
+  }],
   // PROPOSED (Person 3): my keys, never the secret.
+  // PROPOSED (Person 3): my keys, plus every key in my teams if I'm their professor. Never the secret.
   ["GET", /^\/keys$/, () => {
     const p = me();
-    return world.keys.filter((k) => k.user === p.key).map(({ user: _u, ...k }) => (void _u, k));
+    return world.keys
+      .filter((k) => k.user === p.key || ownsGroup(p, k.group_id))
+      .map(({ user, ...k }) => ({
+        ...k,
+        user_id: USER_IDS[user],
+        user_name: PERSONAS.find((x) => x.key === user)!.name,
+      }));
+  }],
+
+  // PROPOSED (Person 3): the team's professor revokes a key.
+  ["POST", /^\/keys\/([^/]+)\/revoke$/, (m) => {
+    const key = world.keys.find((k) => k.id === m[1]) ?? fail(404, "Key not found");
+    requireManage(key.group_id);
+    if (key.status === "disabled") fail(409, "This key is already revoked");
+    key.status = "disabled";
+    return undefined;
   }],
 
   ["POST", /^\/keys$/, (_m, body): IssuedKey => {

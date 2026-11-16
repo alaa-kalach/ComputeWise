@@ -73,3 +73,7 @@ export const listMemberBudgets = (group_id: string) =>
   api<MemberBudget[]>("GET", `/groups/${group_id}/member-budgets`);
 export const setMemberLimit = (group_id: string, user_id: string, monthly_amount: Money | null) =>
   api<MemberBudget>("PUT", `/groups/${group_id}/members/${user_id}/budget-policy`, { monthly_amount });
+export const approveRequest = (id: string) => api<AccessRequest>("POST", `/access-requests/${id}/approve`);
+export const rejectRequest = (id: string, reason?: string) =>
+  api<AccessRequest>("POST", `/access-requests/${id}/reject`, { reason });
+export const revokeKey = (id: string) => api<void>("POST", `/keys/${id}/revoke`);

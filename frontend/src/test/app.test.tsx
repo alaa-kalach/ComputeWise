@@ -28,7 +28,7 @@ async function signInAs(name: RegExp) {
 describe("C1: shell", () => {
   it("lands each role on its own dashboard", async () => {
     await signInAs(/Prof\. Karim Nassar/);
-    expect(await screen.findByRole("heading", { name: "Professor dashboard" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access requests" })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/professor");
   });
 
@@ -37,7 +37,7 @@ describe("C1: shell", () => {
     expect(await screen.findByRole("heading", { name: "Department dashboard" })).toBeInTheDocument();
     const views = screen.getByRole("group", { name: "Switch view" });
     await userEvent.click(within(views).getByRole("button", { name: "Professor" }));
-    expect(await screen.findByRole("heading", { name: "Professor dashboard" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Access requests" })).toBeInTheDocument();
   });
 
   it("shows no view switch for a single role, and signs out", async () => {

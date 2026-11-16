@@ -183,5 +183,7 @@ export interface KeySummary {
   limit_usd: Money | null;
   usage_usd: Money;
   created_at: string;
+  user_id: string;
+  user_name: string;
 }
 
