@@ -1,7 +1,7 @@
 // Answers API calls in mock mode, following the contract and the backend's rules (same
 // status codes, same refusals, same shapes). Stateful: launching a pod or requesting access
 // changes what later calls return, until reload or resetWorld().
-
+import { usd } from "../lib/money";
 import { ApiError } from "../lib/api/client";
 import type {
   AccessRequest,
@@ -12,8 +12,10 @@ import type {
   Pod,
   PodDetail,
   Totals,
+  Provider,
+  MemberBudget,
 } from "../lib/api/types";
-import { GROUPS, MEMBERS, PERSONAS, USER_IDS, personaMe, world, type Persona } from "./world";
+import { CEILINGS, FUNDING, GROUPS, MEMBERS, PERSONAS, USER_IDS, personaMe, world, type LedgerRow, type Persona } from "./world";
 
 // ------------------------------------------------------------------ who is calling
 let current: Persona | null = null;
@@ -54,7 +56,19 @@ function budgetFor(group: string, p: Persona | null): GroupBudget {
   const team = totals(group, null);
   const mine = p && world.userPolicies[`${group}:${p.key}`] ? totals(group, p.key) : null;
   const left = Math.max(0, Math.min(units(team.remaining), mine ? units(mine.remaining) : Infinity));
-  return { group_id: group, period: world.period, team, mine, available: money(left) };
+
+  const rows = world.ledger.filter((r) => r.group_id === group);
+  const sum = (rs: LedgerRow[]) => rs.reduce((a, r) => a + units(r.amount), 0);
+  const spentOn = (prov: Provider) => money(-sum(rows.filter((r) => r.type === "spend" && r.provider === prov)));
+  const professor = GROUPS.find((g) => g.id === group)!.professor_id;
+
+  return {
+    group_id: group, period: world.period, team, mine, available: money(left),
+    policy: world.teamPolicies[group] ?? null,
+    rolled_over: money(sum(rows.filter((r) => r.type === "rollover"))),
+    by_provider: { openrouter: spentOn("openrouter"), runpod: spentOn("runpod") },
+    funding: FUNDING[professor] ?? null,
+  };
 }
 
 const GPUS: [string, string, number, string][] = [
@@ -116,7 +130,55 @@ function approvedAccess(p: Persona, group: string, provider: string): boolean {
     (r) => r.user_id === USER_IDS[p.key] && r.group_id === group && r.provider === provider && r.status === "approved",
   );
 }
+function requireManage(group: string): Persona {
+  const p = me();
+  if (!seesGroup(p, group)) fail(404, "Group not found");
+  if (!ownsGroup(p, group)) fail(403, "Only the group's professor can change this group");
+  return p;
+}
 
+const teamFunding = (groups: string[]) =>
+  world.ledger
+    .filter((r) => groups.includes(r.group_id) && r.user === null && (r.type === "allocation" || r.type === "adjustment"))
+    .reduce((a, r) => a + units(r.amount), 0);
+
+const myGroups = (p: Persona) => GROUPS.filter((g) => g.professor_id === p.professor_id).map((g) => g.id);
+
+function checkCeiling(p: Persona, extra: number): void {
+  const ceiling = CEILINGS[p.professor_id!];
+  if (ceiling == null) return; // tracking only
+  const left = units(ceiling) - teamFunding(myGroups(p));
+  if (extra > left) {
+    fail(409, `That's more than you have left to give: ${usd(money(left))}.`, { unallocated: money(left) });
+  }
+}
+const keyOf = (userId: string): string =>
+  Object.keys(USER_IDS).find((k) => USER_IDS[k] === userId) ?? fail(404, "Member not found");
+
+function requireMember(group: string, userId: string): string {
+  const key = keyOf(userId);
+  if (!MEMBERS[group]?.includes(key)) fail(404, "Member not found");
+  return key;
+}
+
+function memberOut(group: string, key: string) {
+  const person = PERSONAS.find((x) => x.key === key)!;
+  return {
+    user_id: USER_IDS[key], name: person.name, email: person.email,
+    status: world.suspended.has(`${group}:${key}`) ? ("suspended" as const) : ("active" as const),
+  };
+}
+
+function memberBudget(group: string, key: string): MemberBudget {
+  const spent = -world.ledger
+    .filter((r) => r.group_id === group && r.user === key && r.type === "spend")
+    .reduce((a, r) => a + units(r.amount), 0);
+  return {
+    user_id: USER_IDS[key],
+    spent: money(spent),
+    limit: world.userPolicies[`${group}:${key}`] ? totals(group, key) : null,
+  };
+}
 // ------------------------------------------------------------------ routes
 type Route = (m: RegExpMatchArray, body: any, query: URLSearchParams) => unknown; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -128,13 +190,147 @@ const routes: [string, RegExp, Route][] = [
     return GROUPS.filter((g) => seesGroup(p, g.id)).map(({ professor_name: _n, ...g }) => (void _n, g));
   }],
 
-  // PROPOSED (Person 2): what the caller sees of a group's budget.
   ["GET", /^\/groups\/([^/]+)\/budget$/, (m) => {
     const p = me();
     if (!seesGroup(p, m[1])) fail(404, "Group not found");
     return budgetFor(m[1], isMember(p, m[1]) ? p : null);
   }],
 
+    ["GET", /^\/budget\/summary$/, () => {
+    const p = me();
+    if (!p.professor_id) fail(403, "Only professors have a budget summary");
+    const groups = myGroups(p);
+    const ceiling = CEILINGS[p.professor_id!];
+    const allocated = teamFunding(groups);
+    const spent = -world.ledger
+      .filter((r) => groups.includes(r.group_id) && r.type === "spend")
+      .reduce((a, r) => a + units(r.amount), 0);
+    return {
+      period: world.period,
+      ceiling: ceiling == null ? null : money(units(ceiling)),
+      allocated: money(allocated),
+      unallocated: ceiling == null ? null : money(units(ceiling) - allocated),
+      spent: money(spent),
+      last_synced_at: new Date(Date.now() - 3 * 60_000).toISOString(),
+    };
+  }],
+
+  ["PUT", /^\/groups\/([^/]+)\/budget-policy$/, (m, body) => {
+    const p = requireManage(m[1]);
+    const amount = units(body.monthly_amount);
+    if (!(amount >= 0)) fail(422, "Monthly amount must be 0 or more");
+    const current = world.ledger
+      .filter((r) => r.group_id === m[1] && r.user === null && r.type === "allocation")
+      .reduce((a, r) => a + units(r.amount), 0);
+    checkCeiling(p, amount - current);
+    world.teamPolicies[m[1]] = {
+      monthly_amount: money(amount),
+      rollover: !!body.rollover,
+      rollover_cap: body.rollover_cap ? money(units(body.rollover_cap)) : null,
+    };
+    if (amount !== current) {
+      world.ledger.push({ group_id: m[1], user: null, type: "allocation", amount: money(amount - current) });
+    }
+    return budgetFor(m[1], null);
+  }],
+
+  ["POST", /^\/groups\/([^/]+)\/top-ups$/, (m, body) => {
+    const p = requireManage(m[1]);
+    const amount = units(body.amount);
+    if (!(amount > 0)) fail(422, "Top-up must be more than 0");
+    if (!body.note?.trim()) fail(422, "Write a short reason for the top-up");
+    checkCeiling(p, amount);
+    world.ledger.push({ group_id: m[1], user: null, type: "adjustment", amount: money(amount) });
+    return budgetFor(m[1], null);
+  }],
+  ["GET", /^\/groups\/([^/]+)$/, (m) => {
+    const p = me();
+    if (!seesGroup(p, m[1])) fail(404, "Group not found");
+    const { professor_name: _n, ...group } = GROUPS.find((g) => g.id === m[1])!;
+    void _n;
+    const staff = p.admin || ownsGroup(p, m[1]);
+    const keys = staff ? MEMBERS[m[1]] : MEMBERS[m[1]].filter((k) => k === p.key);
+    return { ...group, members: keys.map((k) => memberOut(m[1], k)) };
+  }],
+
+  ["POST", /^\/groups\/([^/]+)\/members$/, (m, body) => {
+    requireManage(m[1]);
+    const email = String(body.email ?? "").trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fail(422, "Not a valid email address");
+    let person = PERSONAS.find((x) => x.email === email);
+    let invited = false;
+    if (!person) {
+      if (!body.name?.trim()) fail(422, "This email is new: add the student's name too");
+      const key = `new${Date.now()}`;
+      person = { key, name: body.name.trim(), email, roles: ["user"], professor_id: null, admin: false, blurb: "Added by a professor" };
+      PERSONAS.push(person);
+      USER_IDS[key] = `u-${key}`;
+      invited = true;
+    }
+    if (MEMBERS[m[1]].includes(person.key)) fail(409, "Already a member of this group");
+    MEMBERS[m[1]].push(person.key);
+    return { ...memberOut(m[1], person.key), invited };
+  }],
+
+  ["PATCH", /^\/groups\/([^/]+)\/members\/([^/]+)$/, (m, body) => {
+    requireManage(m[1]);
+    const key = requireMember(m[1], m[2]);
+    const suspend = body.status === "suspended";
+    if (suspend) world.suspended.add(`${m[1]}:${key}`);
+    else world.suspended.delete(`${m[1]}:${key}`);
+    for (const k of world.keys) {
+      if (k.user === key && k.group_id === m[1]) k.status = suspend ? "disabled" : "active";
+    }
+    if (suspend) {
+      for (const pod of world.pods) {
+        if (pod.user === key && pod.group_id === m[1] && pod.state === "running") {
+          pod.state = "stopped";
+          pod.stopped_by = "professor";
+        }
+      }
+    }
+    return memberOut(m[1], key);
+  }],
+
+  ["DELETE", /^\/groups\/([^/]+)\/members\/([^/]+)$/, (m) => {
+    requireManage(m[1]);
+    const key = requireMember(m[1], m[2]);
+    if (world.ledger.some((r) => r.group_id === m[1] && r.user === key && r.type === "spend")) {
+      fail(409, "This student has spent money in this group. Suspend them instead, so the history stays complete.");
+    }
+    MEMBERS[m[1]] = MEMBERS[m[1]].filter((k) => k !== key);
+    return undefined;
+  }],
+
+  ["GET", /^\/groups\/([^/]+)\/member-budgets$/, (m) => {
+    requireManage(m[1]);
+    return MEMBERS[m[1]].map((k) => memberBudget(m[1], k));
+  }],
+
+  ["PUT", /^\/groups\/([^/]+)\/members\/([^/]+)\/budget-policy$/, (m, body) => {
+    requireManage(m[1]);
+    const key = requireMember(m[1], m[2]);
+    const tag = `${m[1]}:${key}`;
+    if (body.monthly_amount === null) {
+      delete world.userPolicies[tag];
+      return memberBudget(m[1], key);
+    }
+    const amount = units(body.monthly_amount);
+    if (!(amount >= 0)) fail(422, "Limit must be 0 or more");
+    const teamFunded = units(totals(m[1], null).funded);
+    if (amount > teamFunded) {
+      fail(409, `A student's limit can't be more than the team's budget: ${usd(money(teamFunded))}.`);
+    }
+    const current = world.ledger
+      .filter((r) => r.group_id === m[1] && r.user === key && r.type === "allocation")
+      .reduce((a, r) => a + units(r.amount), 0);
+    world.userPolicies[tag] = money(amount);
+    if (amount !== current) {
+      world.ledger.push({ group_id: m[1], user: key, type: "allocation", amount: money(amount - current) });
+    }
+    return memberBudget(m[1], key);
+  }],
+  
   ["GET", /^\/access-requests$/, (_m, _b, query) => {
     const p = me();
     let rows = world.requests.filter(
@@ -340,7 +536,6 @@ export function approvePendingFor(personaKey: string): number {
   return pending.length;
 }
 
-/** What the sync job would record: `amount` USD of spend by this persona in this group. */
-export function simulateSpend(personaKey: string, group: string, amount: string): void {
-  world.ledger.push({ group_id: group, user: personaKey, type: "spend", amount: `-${amount}` });
+export function simulateSpend(personaKey: string, group: string, amount: string, provider: Provider = "openrouter"): void {
+  world.ledger.push({ group_id: group, user: personaKey, type: "spend", amount: `-${amount}`, provider });
 }

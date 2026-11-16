@@ -33,6 +33,16 @@ export interface Group {
   professor_id: string;
   created_at: string;
 }
+export interface Member {
+  user_id: string;
+  name: string;
+  email: string;
+  status: MemberStatus;
+}
+
+export interface GroupDetail extends Group {
+  members: Member[];
+}
 
 export interface AccessRequest {
   id: string;
@@ -122,22 +132,46 @@ export interface Notification {
   created_at: string;
 }
 
-// ---------------------------------------------------------------------------------------
-// PROPOSED, not in the contract yet. The mocks serve these shapes; the owners decide the
-// real ones and these types follow.
 
-/** PROPOSED for Person 2 (A4): GET /groups/{group_id}/budget, as seen by the caller. */
 export interface Totals {
   funded: Money; // allocations + rollover + adjustments this month
   spent: Money;
   remaining: Money;
 }
+export interface BudgetPolicy {
+  monthly_amount: Money;
+  rollover: boolean;
+  rollover_cap: Money | null; // null = default, 1 x monthly_amount
+}
+
+/** GET /groups/{group_id}/budget */
 export interface GroupBudget {
   group_id: string;
   period: string; // "YYYY-MM"
   team: Totals;
-  mine: Totals | null; // the caller's own sub-budget in this group, if he has one (D9)
-  available: Money; // what the caller can still spend here: min(team, mine)
+  mine: Totals | null;
+  available: Money;
+  policy: BudgetPolicy | null; // null = no budget set yet
+  rolled_over: Money;
+  by_provider: { openrouter: Money; runpod: Money };
+  funding: { label: string; billable: boolean } | null;
+}
+
+/** GET /budget/summary */
+export interface ProfessorBudgetSummary {
+  period: string;
+  ceiling: Money | null; // null = tracking only
+  allocated: Money;
+  unallocated: Money | null; // null = tracking only
+  spent: Money;
+  last_synced_at: string | null;
+}
+
+/** GET /groups/{group_id}/member-budgets */
+export interface MemberBudget {
+  user_id: string;
+  spent: Money; // this month, in this group
+  limit: Totals | null; // null = shares the team budget, no personal limit
 }
 
 /** PROPOSED for Person 3 (B3): GET /keys, the caller's OpenRouter keys (never the secret). */
@@ -150,3 +184,4 @@ export interface KeySummary {
   usage_usd: Money;
   created_at: string;
 }
+

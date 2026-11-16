@@ -2,7 +2,7 @@
 // budgets, keys and pods, so screens built on mocks show the numbers the real API will.
 // State lives in memory and resets on reload (resetWorld()).
 
-import type { AccessRequest, KeySummary, Me, Pod, Role } from "../lib/api/types";
+import type { AccessRequest, BudgetPolicy, KeySummary, Me, Pod, Provider, Role } from "../lib/api/types";
 
 export interface Persona {
   key: string;
@@ -59,11 +59,23 @@ export const MEMBERS: Record<string, string[]> = {
   [LAB]: ["sara", "maya"],
 };
 
+export const CEILINGS: Record<string, string | null> = {
+  [PROF_A]: "400",
+  [PROF_B]: null, // tracking only
+  [PROF_DANA]: null,
+};
+
+export const FUNDING: Record<string, { label: string; billable: boolean }> = {
+  [PROF_A]: { label: "Department OpenRouter + RunPod", billable: true },
+  [PROF_B]: { label: "Prof. Khoury's own accounts", billable: false },
+};
+
 export interface LedgerRow {
   group_id: string;
   user: string | null; // null = team-level (allocation, rollover, adjustment)
   type: "allocation" | "rollover" | "adjustment" | "spend";
   amount: string;
+  provider?: Provider; // spend rows only
 }
 
 export interface World {
@@ -71,6 +83,7 @@ export interface World {
   ledger: LedgerRow[];
   /** user sub-budgets: `${group}:${user}` -> monthly amount (D9) */
   userPolicies: Record<string, string>;
+  teamPolicies: Record<string, BudgetPolicy>;
   requests: AccessRequest[];
   keys: (KeySummary & { user: string })[];
   pods: (Pod & { user: string; ready_at: number | null; jupyter: boolean })[];
@@ -116,13 +129,18 @@ function freshWorld(): World {
       { group_id: FYP1, user: "sara", type: "allocation", amount: "20" },
       { group_id: LAB, user: "sara", type: "allocation", amount: "40" },
       { group_id: FYP1, user: "omar", type: "allocation", amount: "25" },
-      { group_id: FYP1, user: "sara", type: "spend", amount: "-8.5" },
-      { group_id: FYP1, user: "omar", type: "spend", amount: "-12.3" },
-      { group_id: FYP2, user: "lina", type: "spend", amount: "-41" },
-      { group_id: LAB, user: "sara", type: "spend", amount: "-15.2" },
-      { group_id: LAB, user: "maya", type: "spend", amount: "-22" },
+      { group_id: FYP1, user: "sara", type: "spend", amount: "-8.5", provider: "openrouter" },
+      { group_id: FYP1, user: "omar", type: "spend", amount: "-12.3", provider: "runpod" },
+      { group_id: FYP2, user: "lina", type: "spend", amount: "-41", provider: "runpod" },
+      { group_id: LAB, user: "sara", type: "spend", amount: "-15.2", provider: "openrouter" },
+      { group_id: LAB, user: "maya", type: "spend", amount: "-22", provider: "runpod" },
     ],
     userPolicies: { [`${FYP1}:sara`]: "20", [`${LAB}:sara`]: "40", [`${FYP1}:omar`]: "25" },
+    teamPolicies: {
+      [FYP1]: { monthly_amount: "50.0000", rollover: true, rollover_cap: null },
+      [FYP2]: { monthly_amount: "50.0000", rollover: false, rollover_cap: null },
+      [LAB]: { monthly_amount: "150.0000", rollover: true, rollover_cap: null },
+    },
     requests: [
       req("r1", "sara", FYP1, "openrouter", "approved", "LLM calls for the FYP chatbot", true),
       req("r2", "sara", LAB, "openrouter", "approved", "Evaluation runs", true),

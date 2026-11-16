@@ -14,6 +14,13 @@ import type {
   PodDetail,
   PodLaunch,
   Provider,
+  BudgetPolicy,
+  Money,
+  ProfessorBudgetSummary,
+  GroupDetail,
+  Member,
+  MemberBudget,
+  MemberStatus
 } from "./types";
 
 const q = (params: Record<string, string | boolean | undefined>) => {
@@ -48,3 +55,21 @@ export const listNotifications = () => api<Notification[]>("GET", "/notification
 // PROPOSED, not in the contract yet (see types.ts).
 export const getGroupBudget = (group_id: string) => api<GroupBudget>("GET", `/groups/${group_id}/budget`);
 export const listMyKeys = () => api<KeySummary[]>("GET", "/keys");
+
+export const getBudgetSummary = () => api<ProfessorBudgetSummary>("GET", "/budget/summary");
+export const setTeamBudget = (group_id: string, policy: BudgetPolicy) =>
+  api<GroupBudget>("PUT", `/groups/${group_id}/budget-policy`, policy);
+export const topUpTeam = (group_id: string, amount: Money, note: string) =>
+  api<GroupBudget>("POST", `/groups/${group_id}/top-ups`, { amount, note });
+export const getGroup = (group_id: string) => api<GroupDetail>("GET", `/groups/${group_id}`);
+export const addMember = (group_id: string, email: string, name?: string) =>
+  api<Member & { invited: boolean }>("POST", `/groups/${group_id}/members`, { email, name });
+export const setMemberStatus = (group_id: string, user_id: string, status: MemberStatus) =>
+  api<Member>("PATCH", `/groups/${group_id}/members/${user_id}`, { status });
+export const removeMember = (group_id: string, user_id: string) =>
+  api<void>("DELETE", `/groups/${group_id}/members/${user_id}`);
+
+export const listMemberBudgets = (group_id: string) =>
+  api<MemberBudget[]>("GET", `/groups/${group_id}/member-budgets`);
+export const setMemberLimit = (group_id: string, user_id: string, monthly_amount: Money | null) =>
+  api<MemberBudget>("PUT", `/groups/${group_id}/members/${user_id}/budget-policy`, { monthly_amount });
