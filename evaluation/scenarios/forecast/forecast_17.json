@@ -1,0 +1,72 @@
+{
+  "id": "forecast_17",
+  "area": "forecast",
+  "role": "department",
+  "split": "tune",
+  "description": "Department view: one runaway team (team Z1, $4 a day) pushes Prof. Karam's projected demand to about $174 against a $150 grant ceiling. Only 58% of the ceiling is spent so far.",
+  "period": {
+    "days": 30,
+    "day": 15
+  },
+  "professors": [
+    {
+      "id": "prof-5",
+      "name": "Prof. Karam",
+      "grant_ceiling_usd": 150.0
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-z1",
+      "name": "FYP Z1",
+      "professor_id": "prof-5",
+      "balance_usd": 100.0
+    },
+    {
+      "id": "team-z2",
+      "name": "FYP Z2",
+      "professor_id": "prof-5",
+      "balance_usd": 30.0
+    },
+    {
+      "id": "team-z3",
+      "name": "FYP Z3",
+      "professor_id": "prof-5",
+      "balance_usd": 20.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-z1",
+      "type": "key",
+      "team_id": "team-z1",
+      "user": "ali",
+      "daily_spend": [4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]
+    },
+    {
+      "id": "key-z2",
+      "type": "key",
+      "team_id": "team-z2",
+      "user": "mona",
+      "daily_spend": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    },
+    {
+      "id": "key-z3",
+      "type": "key",
+      "team_id": "team-z3",
+      "user": "fares",
+      "daily_spend": [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "escalate_to_department",
+      "target": "prof-5"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "id": "forecast_07",
+  "area": "forecast",
+  "role": "department",
+  "strict": true,
+  "split": "tune",
+  "description": "Professor Khoury has a $100 grant ceiling and his teams are at 20% with a slow, steady rate. The department does not need to hear about it.",
+  "period": {
+    "days": 30,
+    "day": 16
+  },
+  "professors": [
+    {
+      "id": "prof-3",
+      "name": "Prof. Khoury",
+      "grant_ceiling_usd": 100.0
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-y1",
+      "name": "FYP Y1",
+      "professor_id": "prof-3",
+      "balance_usd": 50.0
+    },
+    {
+      "id": "team-y2",
+      "name": "FYP Y2",
+      "professor_id": "prof-3",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-y1",
+      "type": "key",
+      "team_id": "team-y1",
+      "user": "rima",
+      "daily_spend": [0.8, 0.7, 0.9, 0.8, 0.8, 0.7, 0.9, 0.8, 0.8, 0.7, 0.9, 0.8, 0.8, 0.7, 0.9, 0.8]
+    },
+    {
+      "id": "key-y2",
+      "type": "key",
+      "team_id": "team-y2",
+      "user": "tony",
+      "daily_spend": [0.5, 0.4, 0.6, 0.5, 0.5, 0.4, 0.6, 0.5, 0.5, 0.4, 0.6, 0.5, 0.5, 0.4, 0.6, 0.5]
+    }
+  ],
+  "expected": [],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

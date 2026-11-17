@@ -1,0 +1,44 @@
+{
+  "id": "forecast_15",
+  "area": "forecast",
+  "strict": true,
+  "split": "tune",
+  "description": "An old pod is stopped (250 idle hours) and costs nothing now. The team is healthy at 43%. There is nothing to stop.",
+  "period": {
+    "days": 30,
+    "day": 14
+  },
+  "teams": [
+    {
+      "id": "team-i",
+      "name": "FYP I",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-i",
+      "user": "toni",
+      "daily_spend": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    },
+    {
+      "id": "pod-1",
+      "type": "pod",
+      "team_id": "team-i",
+      "user": "carla",
+      "status": "stopped",
+      "hourly_usd": 0.2,
+      "idle_hours": 250,
+      "daily_spend": [4.8, 4.8, 4.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    }
+  ],
+  "expected": [],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

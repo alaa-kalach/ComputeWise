@@ -1,0 +1,38 @@
+{
+  "id": "forecast_02",
+  "area": "forecast",
+  "split": "tune",
+  "description": "Fast spender: only 60% used, so a threshold alert stays silent, but at $3 a day the money runs out in about 7 days.",
+  "period": {
+    "days": 30,
+    "day": 10
+  },
+  "teams": [
+    {
+      "id": "team-beta",
+      "name": "FYP Beta",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-beta",
+      "user": "lina",
+      "daily_spend": [2.5, 3.0, 3.5, 2.8, 3.2, 3.0, 3.1, 2.9, 3.3, 2.7]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-beta"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

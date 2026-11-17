@@ -1,0 +1,34 @@
+{
+  "id": "forecast_01",
+  "area": "forecast",
+  "split": "tune",
+  "description": "Healthy team: steady $1 a day, 30% of the budget used halfway through the month. The right answer is to do nothing.",
+  "period": {
+    "days": 30,
+    "day": 15
+  },
+  "strict": true,
+  "teams": [
+    {
+      "id": "team-alpha",
+      "name": "FYP Alpha",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-alpha",
+      "user": "ahmad",
+      "daily_spend": [1.0, 1.1, 0.9, 1.0, 1.2, 1.0, 0.8, 1.0, 1.1, 1.0, 0.9, 1.0, 1.1, 1.0, 0.9]
+    }
+  ],
+  "expected": [],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

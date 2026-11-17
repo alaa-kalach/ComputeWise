@@ -1,0 +1,48 @@
+{
+  "id": "forecast_10",
+  "area": "forecast",
+  "split": "tune",
+  "description": "A pod has sat idle for 60 hours at $0.34 an hour while a key spends about $1 a day. Stopping the idle pod stops the waste.",
+  "period": {
+    "days": 30,
+    "day": 12
+  },
+  "teams": [
+    {
+      "id": "team-t",
+      "name": "FYP T",
+      "professor_id": "prof-1",
+      "balance_usd": 80.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-t",
+      "user": "maya",
+      "daily_spend": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    },
+    {
+      "id": "pod-1",
+      "type": "pod",
+      "team_id": "team-t",
+      "user": "jad",
+      "status": "running",
+      "hourly_usd": 0.34,
+      "idle_hours": 60,
+      "daily_spend": [0, 0, 0, 0, 0, 0, 0, 0, 0, 8.16, 8.16, 8.16]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "propose_pod_stop",
+      "target": "pod-1"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

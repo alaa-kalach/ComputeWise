@@ -1,0 +1,45 @@
+{
+  "id": "forecast_04",
+  "area": "forecast",
+  "split": "tune",
+  "description": "One key jumps from about $0.5 a day to $9 in a single day, like a runaway script. The team is only at 54% of its budget.",
+  "period": {
+    "days": 30,
+    "day": 14
+  },
+  "teams": [
+    {
+      "id": "team-delta",
+      "name": "FYP Delta",
+      "professor_id": "prof-1",
+      "balance_usd": 60.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-delta",
+      "user": "nour",
+      "daily_spend": [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+    },
+    {
+      "id": "key-2",
+      "type": "key",
+      "team_id": "team-delta",
+      "user": "karim",
+      "daily_spend": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 9.0]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "propose_key_disable",
+      "target": "key-2"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

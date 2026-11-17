@@ -1,0 +1,55 @@
+{
+  "id": "forecast_05",
+  "area": "forecast",
+  "split": "heldout",
+  "description": "Team A will run out in about 2 days while team B, under the same professor, has used only 16% of its budget. Warn team A and propose moving money from B to A.",
+  "period": {
+    "days": 30,
+    "day": 20
+  },
+  "teams": [
+    {
+      "id": "team-a",
+      "name": "FYP A",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    },
+    {
+      "id": "team-b",
+      "name": "FYP B",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-a1",
+      "type": "key",
+      "team_id": "team-a",
+      "user": "hala",
+      "daily_spend": [2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3]
+    },
+    {
+      "id": "key-b1",
+      "type": "key",
+      "team_id": "team-b",
+      "user": "sami",
+      "daily_spend": [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-a"
+    },
+    {
+      "tool": "propose_budget_change",
+      "target": "team-b->team-a"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

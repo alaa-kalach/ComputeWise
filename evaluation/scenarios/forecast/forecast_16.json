@@ -1,0 +1,55 @@
+{
+  "id": "forecast_16",
+  "area": "forecast",
+  "role": "department",
+  "strict": true,
+  "split": "heldout",
+  "description": "Department view: the professor's teams have spent 86% of his $100 grant ceiling on day 28, but only about $0.80 a day lately, so the total will stay under the ceiling. No escalation needed.",
+  "period": {
+    "days": 30,
+    "day": 28
+  },
+  "professors": [
+    {
+      "id": "prof-4",
+      "name": "Prof. Nasr",
+      "grant_ceiling_usd": 100.0
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-y1",
+      "name": "FYP Y1",
+      "professor_id": "prof-4",
+      "balance_usd": 50.0
+    },
+    {
+      "id": "team-y2",
+      "name": "FYP Y2",
+      "professor_id": "prof-4",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-y1",
+      "type": "key",
+      "team_id": "team-y1",
+      "user": "rita",
+      "daily_spend": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+    },
+    {
+      "id": "key-y2",
+      "type": "key",
+      "team_id": "team-y2",
+      "user": "paul",
+      "daily_spend": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+    }
+  ],
+  "expected": [],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

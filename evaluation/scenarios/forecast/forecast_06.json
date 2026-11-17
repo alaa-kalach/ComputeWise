@@ -1,0 +1,59 @@
+{
+  "id": "forecast_06",
+  "area": "forecast",
+  "role": "department",
+  "split": "heldout",
+  "description": "Professor Haddad has a $100 grant ceiling on the department credential and has allocated all of it. His teams spent 78% by day 16 and are on course to need about $146, so he will hit the ceiling in about a week and will ask for more.",
+  "period": {
+    "days": 30,
+    "day": 16
+  },
+  "professors": [
+    {
+      "id": "prof-2",
+      "name": "Prof. Haddad",
+      "grant_ceiling_usd": 100.0
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-x1",
+      "name": "FYP X1",
+      "professor_id": "prof-2",
+      "balance_usd": 50.0
+    },
+    {
+      "id": "team-x2",
+      "name": "FYP X2",
+      "professor_id": "prof-2",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-x1",
+      "type": "key",
+      "team_id": "team-x1",
+      "user": "dina",
+      "daily_spend": [2.4, 2.6, 2.8, 2.5, 2.7, 2.6, 2.6, 2.4, 2.8, 2.5, 2.7, 2.6, 2.6, 2.5, 2.7, 2.6]
+    },
+    {
+      "id": "key-x2",
+      "type": "key",
+      "team_id": "team-x2",
+      "user": "fadi",
+      "daily_spend": [2.2, 2.3, 2.1, 2.4, 2.2, 2.3, 2.2, 2.3, 2.2, 2.4, 2.3, 2.2, 2.3, 2.2, 2.3, 2.3]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "escalate_to_department",
+      "target": "prof-2"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

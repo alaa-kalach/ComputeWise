@@ -1,0 +1,44 @@
+{
+  "id": "forecast_11",
+  "area": "forecast",
+  "strict": true,
+  "split": "heldout",
+  "description": "A pod costs $8 a day but its GPU is busy (2 idle hours). The team is at 34% of a $150 budget and will finish within it. Stopping a working pod would be wrong.",
+  "period": {
+    "days": 30,
+    "day": 20
+  },
+  "teams": [
+    {
+      "id": "team-u",
+      "name": "FYP U",
+      "professor_id": "prof-1",
+      "balance_usd": 150.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-u",
+      "user": "ziad",
+      "daily_spend": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    },
+    {
+      "id": "pod-1",
+      "type": "pod",
+      "team_id": "team-u",
+      "user": "rana",
+      "status": "running",
+      "hourly_usd": 0.34,
+      "idle_hours": 2,
+      "daily_spend": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8.16, 8.16, 8.16, 8.16, 8.16]
+    }
+  ],
+  "expected": [],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

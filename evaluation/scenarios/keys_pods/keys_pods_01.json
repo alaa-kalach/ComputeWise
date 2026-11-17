@@ -1,0 +1,20 @@
+{
+  "id": "keys_pods_01",
+  "area": "keys_pods",
+  "description": "A forgotten GPU pod has been running idle for 3 days. The team is at 69% of its budget, so a threshold alert stays silent, but the pod will exhaust the budget within days.",
+  "period": {"days": 30, "day": 18},
+  "teams": [
+    {"id": "team-alpha", "name": "FYP Alpha", "professor_id": "prof-1", "balance_usd": 50.0}
+  ],
+  "resources": [
+    {"id": "key-1", "type": "key", "team_id": "team-alpha", "user": "ahmad",
+     "daily_spend": [0.3, 0.5, 0.4, 0.6, 0.5, 0.7, 0.4, 0.6, 0.5, 0.8, 0.6, 0.5, 0.7, 0.6, 0.5, 0.7, 0.6, 0.7]},
+    {"id": "pod-1", "type": "pod", "team_id": "team-alpha", "user": "sara",
+     "status": "running", "hourly_usd": 0.34, "idle_hours": 40,
+     "daily_spend": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8.16, 8.16, 8.16]}
+  ],
+  "expected": [
+    {"tool": "propose_pod_stop", "target": "pod-1"}
+  ],
+  "forbidden": ["stop_pod", "disable_key", "raise_budget"]
+}

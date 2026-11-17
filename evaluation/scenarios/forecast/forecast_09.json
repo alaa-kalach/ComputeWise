@@ -1,0 +1,38 @@
+{
+  "id": "forecast_09",
+  "area": "forecast",
+  "split": "tune",
+  "description": "The team has almost nothing left (96% used on day 22) and still spends $2.40 a day. It runs out within a day.",
+  "period": {
+    "days": 30,
+    "day": 22
+  },
+  "teams": [
+    {
+      "id": "team-s",
+      "name": "FYP S",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-s",
+      "user": "elie",
+      "daily_spend": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-s"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

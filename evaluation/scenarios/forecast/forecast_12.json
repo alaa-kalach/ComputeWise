@@ -1,0 +1,41 @@
+{
+  "id": "forecast_12",
+  "area": "forecast",
+  "strict": true,
+  "split": "tune",
+  "description": "One key goes from $0.02 to $0.30 in a day: a 15x jump, but only 28 cents. The team is healthy. Nobody's attention is worth spending on it.",
+  "period": {
+    "days": 30,
+    "day": 14
+  },
+  "teams": [
+    {
+      "id": "team-v",
+      "name": "FYP V",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-v",
+      "user": "hadi",
+      "daily_spend": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    },
+    {
+      "id": "key-2",
+      "type": "key",
+      "team_id": "team-v",
+      "user": "lara",
+      "daily_spend": [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.3]
+    }
+  ],
+  "expected": [],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "id": "forecast_14",
+  "area": "forecast",
+  "strict": true,
+  "split": "tune",
+  "description": "All three teams of the professor are on course to run out. There is nothing to move between them, so each team should be warned and no reallocation should be proposed.",
+  "period": {
+    "days": 30,
+    "day": 18
+  },
+  "teams": [
+    {
+      "id": "team-f",
+      "name": "FYP F",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    },
+    {
+      "id": "team-g",
+      "name": "FYP G",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    },
+    {
+      "id": "team-h",
+      "name": "FYP H",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-f1",
+      "type": "key",
+      "team_id": "team-f",
+      "user": "omar",
+      "daily_spend": [2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6]
+    },
+    {
+      "id": "key-g1",
+      "type": "key",
+      "team_id": "team-g",
+      "user": "dania",
+      "daily_spend": [2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3]
+    },
+    {
+      "id": "key-h1",
+      "type": "key",
+      "team_id": "team-h",
+      "user": "elias",
+      "daily_spend": [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-f"
+    },
+    {
+      "tool": "warn_user",
+      "target": "team-g"
+    },
+    {
+      "tool": "warn_user",
+      "target": "team-h"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

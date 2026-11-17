@@ -1,0 +1,91 @@
+{
+  "id": "forecast_18",
+  "area": "forecast",
+  "role": "department",
+  "split": "tune",
+  "description": "Department view: one key of Prof. Haddad's team W1 jumps from about $1 a day to $9 in one day, like a leaked key. His projected demand is far below the $300 grant ceiling, but he uses the department credential, so the department pays.",
+  "period": {
+    "days": 30,
+    "day": 15
+  },
+  "professors": [
+    {
+      "id": "prof-6",
+      "name": "Prof. Haddad",
+      "grant_ceiling_usd": 300.0
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-w1",
+      "name": "FYP W1",
+      "professor_id": "prof-6",
+      "balance_usd": 100.0
+    },
+    {
+      "id": "team-w2",
+      "name": "FYP W2",
+      "professor_id": "prof-6",
+      "balance_usd": 100.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-w1",
+      "type": "key",
+      "team_id": "team-w1",
+      "user": "rami",
+      "daily_spend": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        9.0
+      ]
+    },
+    {
+      "id": "key-w2",
+      "type": "key",
+      "team_id": "team-w2",
+      "user": "sana",
+      "daily_spend": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "escalate_to_department",
+      "target": "prof-6"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}
