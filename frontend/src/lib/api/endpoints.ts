@@ -16,6 +16,9 @@ import type {
   Provider,
   BudgetPolicy,
   Money,
+  Escalation,
+  EscalationStatus,
+  WeeklyReport,
   ProfessorBudgetSummary,
   GroupDetail,
   Member,
@@ -51,6 +54,7 @@ export const terminatePod = (id: string) => api<void>("DELETE", `/pods/${id}`);
 export const getMyKey = (group_id: string) => api<IssuedKey>("POST", "/keys", { group_id });
 
 export const listNotifications = () => api<Notification[]>("GET", "/notifications");
+export const markNotificationRead = (id: string) => api<Notification>("POST", `/notifications/${id}/read`);
 
 // PROPOSED, not in the contract yet (see types.ts).
 export const getGroupBudget = (group_id: string) => api<GroupBudget>("GET", `/groups/${group_id}/budget`);
@@ -79,3 +83,13 @@ export const rejectRequest = (id: string, reason?: string) =>
 export const revokeKey = (id: string) => api<void>("POST", `/keys/${id}/revoke`);
 export const correctTeam = (group_id: string, amount: Money, note: string) =>
   api<GroupBudget>("POST", `/groups/${group_id}/corrections`, { amount, note });
+
+// Person 3: escalations (the agent's proposals that wait for a human).
+export const listEscalations = (params: { status?: EscalationStatus } = {}) =>
+  api<Escalation[]>("GET", `/escalations${q(params)}`);
+export const approveEscalation = (id: string) => api<Escalation>("POST", `/escalations/${id}/approve`);
+export const rejectEscalation = (id: string, note?: string) =>
+  api<Escalation>("POST", `/escalations/${id}/reject`, { note: note ?? "" });
+
+// Person 3: weekly report. Without week_start the server uses the last full week (Monday to Sunday).
+export const getWeeklyReport = (week_start?: string) => api<WeeklyReport>("GET", `/reports/weekly${q({ week_start })}`);

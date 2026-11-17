@@ -22,9 +22,30 @@ export function SignIn() {
 
   return (
     <main className="signin">
-      <div className="signin-box">
-        <BrandMark />
-        <h1>ComputeWise</h1>
+      <section className="signin-hero">
+        <div className="signin-name">ComputeWise</div>
+        <h1>
+          Lab compute,
+          <br />
+          kept inside
+          <br />
+          the budget.
+        </h1>
+        <p>
+          One place for keys, pods and spending limits. An agent watches the numbers and proposes; a person always
+          decides.
+        </p>
+        <div className="signin-steps" aria-hidden="true">
+          {[40, 64, 96, 140, 200].map((h, i) => (
+            <span key={i} className={i === 4 ? "last" : undefined} style={{ height: h }} />
+          ))}
+        </div>
+      </section>
+      <section className="signin-box">
+        <div className="signin-title">
+          <BrandMark />
+          <h2>Sign in</h2>
+        </div>
         {USE_MOCKS ? (
           <>
             <p className="lede">Mock mode: pick someone from the seed data. Nothing here touches a real provider.</p>
@@ -63,7 +84,7 @@ export function SignIn() {
             </form>
           </>
         )}
-      </div>
+      </section>
     </main>
   );
 }

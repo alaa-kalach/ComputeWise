@@ -187,3 +187,53 @@ export interface KeySummary {
   user_name: string;
 }
 
+
+
+// ---- Person 3: escalations (GET /escalations, contract schema "Escalation") ----
+export type EscalationStatus = "pending" | "approved" | "rejected" | "failed";
+export type EscalationKind =
+  | "propose_pod_stop"
+  | "propose_key_disable"
+  | "propose_budget_change"
+  | "escalate_to_department";
+
+export interface Escalation {
+  id: string;
+  kind: EscalationKind;
+  target: string;
+  reason: string; // four lines: ISSUE / EVIDENCE / PROPOSED ACTION / IF IGNORED
+  recipient_type: "professor" | "department";
+  group_id: string | null;
+  status: EscalationStatus;
+  created_at: string;
+  decided_at: string | null;
+  note: string | null;
+  result: Record<string, unknown> | null;
+}
+
+
+// ---- Person 3: weekly report (GET /reports/weekly, contract schema "WeeklyReport") ----
+export interface GroupWeek {
+  group_id: string | null;
+  this_week_usd: Money;
+  last_week_usd: Money;
+  change_pct: number | null; // percent, e.g. 12.5 means +12.5%; null when last week was zero
+}
+
+export interface ProfessorWeek {
+  professor_id: string;
+  professor_name: string;
+  this_week_usd: Money;
+  last_week_usd: Money;
+  change_pct: number | null;
+  billable_usd: Money;
+  observed_usd: Money;
+  groups: GroupWeek[];
+}
+
+export interface WeeklyReport {
+  week_start: string; // YYYY-MM-DD, a Monday
+  rows: ProfessorWeek[];
+  totals: { this_week_usd: Money; last_week_usd: Money; change_pct: number | null };
+  escalations: Record<string, number>; // this week's escalations by status
+}

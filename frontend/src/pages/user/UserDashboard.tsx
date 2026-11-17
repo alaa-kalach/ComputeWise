@@ -2,14 +2,15 @@
 // groups has a separate budget under each. In each: the team budget (and his own limit, if
 // he has one), his OpenRouter key, and his RunPod pods, with access requests where needed.
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-import { BudgetMeter, BudgetTag, Loading, Monogram, Notice, Tag } from "../../components/ui";
+import { BudgetMeter, BudgetTag, Button, Loading, Monogram, Notice, Tag } from "../../components/ui";
 import {
   getGroupBudget,
   listAccessRequests,
   listMyKeys,
   listNotifications,
+  markNotificationRead,
   listPods,
 } from "../../lib/api/endpoints";
 import { useAuth } from "../../lib/auth";
@@ -22,6 +23,7 @@ import type { GroupData } from "./shared";
 export function UserDashboard() {
   const { me } = useAuth();
   const memberships = me?.memberships ?? [];
+  const [dismissed, setDismissed] = useState<string[]>([]); // hidden at once, saved in the background
 
   const { data, error, loading, reload } = useAsync(async () => {
     const [budgets, requests, keys, pods, notes] = await Promise.all([
@@ -106,11 +108,17 @@ export function UserDashboard() {
           })}
         </nav>
 
-        {data.notes.length > 0 && (
+        {data.notes.some((n) => !dismissed.includes(n.id)) && (
           <div className="notices">
-            {data.notes.map((n) => (
+            {data.notes.filter((n) => !dismissed.includes(n.id)).map((n) => (
               <Notice key={n.id} kind={n.level === "info" ? "info" : n.level}>
-                {n.message}
+                {n.message}{" "}
+                <Button size="sm" variant="quiet" onClick={() => {
+                  setDismissed((d) => [...d, n.id]);
+                  markNotificationRead(n.id).catch(() => setDismissed((d) => d.filter((x) => x !== n.id)));
+                }}>
+                  Dismiss
+                </Button>
               </Notice>
             ))}
           </div>

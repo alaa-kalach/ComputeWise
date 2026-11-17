@@ -8,6 +8,7 @@ import { SummaryRow } from "./SummaryRow";
 import { TeamCard } from "./TeamCard";
 import { ResourcesSection } from "./ResourcesSection";
 import { EscalationsSlot } from "./EscalationsSlot";
+import { WeeklyReport } from "../reports/WeeklyReport";
 
 export function ProfessorDashboard() {
   const { me } = useAuth();
@@ -62,6 +63,8 @@ export function ProfessorDashboard() {
       )}
 
       <EscalationsSlot />
+
+      <WeeklyReport />
 
       <RequestsSection requests={data.requests} onChange={reload} />
 

@@ -271,18 +271,30 @@ dialog.modal::backdrop { background: rgba(14, 22, 30, 0.45); }
 }
 
 /* ---------------------------------------------------------------- sign in */
-.signin {
-  min-height: 100vh; display: grid; place-items: center; padding: var(--s5);
-  background:
-    radial-gradient(90% 70% at 0% 0%, rgba(255, 255, 255, 0.09), transparent 60%),
-    linear-gradient(160deg, var(--brand) 0%, var(--brand-deep) 100%);
+.signin { min-height: 100vh; display: grid; grid-template-columns: 1.15fr 1fr; background: var(--surface); }
+.signin-hero {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
+  gap: var(--s6); padding: 56px; color: #fff; background: var(--brand);
 }
-.signin-box {
-  width: min(460px, 100%); background: var(--surface); border-radius: var(--r-lg); padding: var(--s6);
-  box-shadow: 0 24px 60px rgba(30, 0, 12, 0.35);
+.signin-name { font-family: "Young Serif", Georgia, serif; font-size: 24px; }
+.signin-hero h1 {
+  font-family: "Young Serif", Georgia, serif; font-weight: 400; line-height: 1.05; letter-spacing: -0.01em;
+  font-size: clamp(40px, 5.2vw, 72px);
 }
-.signin .brand-mark { width: 52px; height: 52px; padding: 9px; border-radius: 14px; background: var(--brand); color: #fff; margin-bottom: var(--s3); }
-.signin h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.015em; }
+.signin-hero p { max-width: 380px; font-size: 15px; line-height: 1.6; color: rgba(255, 255, 255, 0.82); }
+.signin-steps { position: absolute; right: 40px; bottom: 0; display: flex; align-items: flex-end; gap: 8px; pointer-events: none; }
+.signin-steps span { width: 40px; background: rgba(255, 255, 255, 0.15); }
+.signin-steps .last { background: #000; }
+.signin-box { align-self: center; width: min(420px, 100%); justify-self: center; padding: var(--s6) var(--s5); }
+.signin-title { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s3); }
+.signin-box h2 { font-family: "Young Serif", Georgia, serif; font-weight: 400; font-size: 30px; margin: 0; }
+@media (max-width: 820px) {
+  .signin { grid-template-columns: 1fr; }
+  .signin-hero { padding: 32px 24px; }
+  .signin-hero h1 { font-size: 40px; }
+  .signin-steps { display: none; }
+}
+.signin .brand-mark { width: 44px; height: 44px; padding: 8px; border-radius: 12px; background: var(--brand); color: #fff; flex: none; }
 .signin .lede { color: var(--muted); margin: var(--s2) 0 var(--s5); }
 .signin form { display: grid; gap: var(--s4); }
 .personas { display: grid; gap: 6px; }
@@ -318,3 +330,8 @@ dialog.modal::backdrop { background: rgba(14, 22, 30, 0.45); }
   .gauge { flex: 1 1 100%; }
   .mocktools[open] { left: var(--s4); width: auto; }
 }
+
+/* C7: the four lines behind an agent proposal */
+.evidence { display: grid; gap: var(--s2); margin: 0; font-size: 14px; }
+.evidence dt { font-size: 13px; color: var(--muted); }
+.evidence dd { margin: 0; }
