@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlmodel import select
 
-from app.access import credentials, department, groups, pods, requests
+from app.access import credentials, department, groups, keys, pods, requests
 from app.budget import api as budget_api
 from app.jobs import api as jobs_api
 from app.core.auth import Role
@@ -78,6 +78,7 @@ app.include_router(groups.router)
 app.include_router(credentials.router)
 app.include_router(requests.router)
 app.include_router(pods.router)
+app.include_router(keys.router)
 app.include_router(department.router)
 app.include_router(budget_api.router)
 app.include_router(jobs_api.router)
