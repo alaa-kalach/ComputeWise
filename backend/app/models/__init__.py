@@ -19,6 +19,7 @@ from app.models.base import (
 )
 from app.models.budget import BudgetPolicy, LedgerEntry
 from app.models.credentials import CredentialGrant, ProfessorProviderBinding, ProviderCredential
+from app.models.insight import Escalation, Notification
 from app.models.org import Department, DepartmentAdmin, Group, GroupMember, Professor, User
 
 # Tables a trigger keeps append-only (see the initial migration).
@@ -33,6 +34,7 @@ __all__ = [
     "CredentialStatus",
     "Department",
     "DepartmentAdmin",
+    "Escalation",
     "GrantStatus",
     "Group",
     "GroupMember",
@@ -40,6 +42,7 @@ __all__ = [
     "LedgerEntry",
     "LedgerType",
     "MemberStatus",
+    "Notification",
     "OwnerType",
     "Professor",
     "ProfessorProviderBinding",

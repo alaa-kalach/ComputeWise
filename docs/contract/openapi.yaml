@@ -691,7 +691,7 @@ paths:
         professor only his own row. Students get 403.
       x-owner: person3
       parameters:
-        - {name: week_start, in: query, required: false, description: "Defaults to the last Monday. Format YYYY-MM-DD", schema: {type: string, format: date}}
+        - {name: week_start, in: query, required: false, description: "Defaults to the Monday of the last full week. Format YYYY-MM-DD", schema: {type: string, format: date}}
       responses:
         "200":
           description: The report

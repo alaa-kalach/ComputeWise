@@ -13,6 +13,7 @@ from app.jobs import api as jobs_api
 from app.core.auth import Role
 from app.core.config import get_settings
 from app.core.scoping import ScopeDep
+from app.insight import api as insight_api
 from app.models import Group, GroupMember, MemberStatus
 
 app = FastAPI(title="ComputeWise API", version="0.1.0")
@@ -82,3 +83,4 @@ app.include_router(keys.router)
 app.include_router(department.router)
 app.include_router(budget_api.router)
 app.include_router(jobs_api.router)
+app.include_router(insight_api.router)
