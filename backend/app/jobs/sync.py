@@ -86,7 +86,8 @@ def _follow_pod_state(session: Session, res: IssuedResource, state: ResourceStat
     """RunPod stopped or started a pod without us (out of credit, the RunPod console...)."""
     if res.status == ResourceStatus.running and state is ResourceState.disabled:
         res.status = ResourceStatus.stopped
-        res.details = {**{k: v for k, v in (res.details or {}).items() if k != "ready"}, "stopped_by": "provider"}
+        # No stopped_by: the API only allows owner/professor/watchdog. The audit entry says "provider".
+        res.details = {k: v for k, v in (res.details or {}).items() if k not in ("ready", "stopped_by")}
     elif res.status == ResourceStatus.stopped and state is ResourceState.active:
         res.status = ResourceStatus.running
         res.details = {**{k: v for k, v in (res.details or {}).items() if k != "stopped_by"},

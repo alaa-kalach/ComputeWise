@@ -137,7 +137,17 @@ def test_a_pod_runpod_stopped_on_its_own_is_recorded_as_stopped(session):
     at_provider(session, OMAR_POD, state=ResourceState.disabled)
     run_sync(session)
     pod = resource(session, OMAR_POD)
-    assert pod.status == ResourceStatus.stopped and pod.details["stopped_by"] == "provider"
+    assert pod.status == ResourceStatus.stopped and "stopped_by" not in pod.details
+    assert audits(session, "pod.state_sync", OMAR_POD)[-1].details["by"] == "provider"
+
+
+def test_the_pod_list_still_works_after_runpod_stopped_a_pod(client, session):
+    at_provider(session, OMAR_POD, state=ResourceState.disabled)
+    run_sync(session)
+    r = client.get("/pods", headers=auth("karim"))
+    assert r.status_code == 200
+    (omar,) = [p for p in r.json() if p["id"] == str(OMAR_POD)]
+    assert omar["state"] == "stopped" and omar["stopped_by"] is None
 
 
 # ====================================================================== B6: 100%
@@ -249,9 +259,19 @@ def test_revoking_a_credential_stops_its_pods_at_once(client, session):
     assert omar.state is ResourceState.disabled and maya.state is ResourceState.disabled
     for pod_id in (OMAR_POD, MAYA_POD):
         pod = resource(session, pod_id)
-        assert pod.status == ResourceStatus.stopped and pod.details["stopped_by"] == "revocation"
-        assert audits(session, "pod.stop", pod_id)[-1].actor_id == seed_id("u_dana")
+        assert pod.status == ResourceStatus.stopped and "stopped_by" not in pod.details
+        stop = audits(session, "pod.stop", pod_id)[-1]
+        assert stop.actor_id == seed_id("u_dana") and stop.details["by"] == "revocation"
     assert resource(session, LINA_POD).status == ResourceStatus.stopped  # already stopped: untouched
+
+
+def test_the_pod_list_still_works_after_a_revocation(client, session):
+    at_provider(session, OMAR_POD)
+    client.delete(f"/credentials/{DEPT_RUNPOD}", headers=auth("dana"))
+    r = client.get("/pods", headers=auth("karim"))
+    assert r.status_code == 200
+    (omar,) = [p for p in r.json() if p["id"] == str(OMAR_POD)]
+    assert omar["state"] == "stopped" and omar["stopped_by"] is None
 
 
 def test_revoking_one_grant_only_cuts_that_professors_groups(client, session):

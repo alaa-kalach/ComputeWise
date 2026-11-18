@@ -173,10 +173,13 @@ def stop_pod(
     actor: CurrentUser | None = None,
 ) -> None:
     """Stop a running pod (volume kept, D3) and record it. Raises AdapterError if RunPod
-    can't be reached or refuses; nothing is changed then."""
+    can't be reached or refuses; nothing is changed then.
+
+    details["stopped_by"] is shown in the dashboards and the API only allows owner,
+    professor or watchdog, so a revocation leaves it empty; the audit entry says why."""
     adapter.stop(res.external_ref)
     res.status = ResourceStatus.stopped
-    _set_details(res, ready=None, stopped_by=by)
+    _set_details(res, ready=None, stopped_by=by if by == "watchdog" else None)
     session.add(res)
     write_audit(
         session, actor, "pod.stop", "issued_resource", res.id,
