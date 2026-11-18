@@ -1,0 +1,125 @@
+{
+  "id": "keys_pods_05",
+  "area": "keys_pods",
+  "split": "tune",
+  "description": "Two different faults in one team: a pod whose GPU has been unused for 70 hours, and a key that jumps from $0.30 a day to $8.50 on the last day. The team is at 55%. Each fault needs its own proposal; one general warning does not remove either.",
+  "period": {
+    "days": 30,
+    "day": 21
+  },
+  "teams": [
+    {
+      "id": "team-sirius",
+      "name": "Sirius Lab",
+      "professor_id": "prof-2",
+      "balance_usd": 75.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-sirius",
+      "user": "ali",
+      "daily_spend": [
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7
+      ]
+    },
+    {
+      "id": "key-2",
+      "type": "key",
+      "team_id": "team-sirius",
+      "user": "rita",
+      "daily_spend": [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        8.5
+      ]
+    },
+    {
+      "id": "pod-1",
+      "type": "pod",
+      "team_id": "team-sirius",
+      "user": "ali",
+      "status": "running",
+      "hourly_usd": 0.17,
+      "idle_hours": 70,
+      "daily_spend": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4.08,
+        4.08,
+        4.08
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "propose_pod_stop",
+      "target": "pod-1"
+    },
+    {
+      "tool": "propose_key_disable",
+      "target": "key-2"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

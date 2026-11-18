@@ -1,0 +1,159 @@
+{
+  "id": "keys_pods_04",
+  "area": "keys_pods",
+  "split": "tune",
+  "description": "Two teams of the same professor each left a pod running with its GPU unused: Lyra's pod has done nothing for 52 hours since launch, Vega's pod finished its job 30 hours ago. Neither team has crossed 80%, but both pods burn money. Each pod should be proposed for stopping; the keys are normal use.",
+  "period": {
+    "days": 30,
+    "day": 20
+  },
+  "teams": [
+    {
+      "id": "team-lyra",
+      "name": "FYP Lyra",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    },
+    {
+      "id": "team-vega",
+      "name": "FYP Vega",
+      "professor_id": "prof-1",
+      "balance_usd": 40.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-lyra",
+      "user": "omar",
+      "daily_spend": [
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "id": "pod-1",
+      "type": "pod",
+      "team_id": "team-lyra",
+      "user": "omar",
+      "status": "running",
+      "hourly_usd": 0.2,
+      "idle_hours": 52,
+      "daily_spend": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3.2,
+        4.8,
+        4.8
+      ]
+    },
+    {
+      "id": "key-2",
+      "type": "key",
+      "team_id": "team-vega",
+      "user": "jana",
+      "daily_spend": [
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "pod-2",
+      "type": "pod",
+      "team_id": "team-vega",
+      "user": "jana",
+      "status": "running",
+      "hourly_usd": 0.12,
+      "idle_hours": 30,
+      "daily_spend": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2.88,
+        2.88,
+        2.88,
+        2.88
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "propose_pod_stop",
+      "target": "pod-1"
+    },
+    {
+      "tool": "propose_pod_stop",
+      "target": "pod-2"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

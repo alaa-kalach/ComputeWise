@@ -1,0 +1,111 @@
+{
+  "id": "keys_pods_02",
+  "area": "keys_pods",
+  "split": "tune",
+  "description": "Four students each use their own key at well under $1 a day. On day 12 Lea's key suddenly spends $11, about 30 times its usual rate, like a leaked key. The team is only at half its budget, so a threshold alert stays silent. Only Lea's key should be proposed for disabling; the other three are normal use.",
+  "period": {
+    "days": 30,
+    "day": 12
+  },
+  "teams": [
+    {
+      "id": "team-kepler",
+      "name": "FYP Kepler",
+      "professor_id": "prof-1",
+      "balance_usd": 60.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-kepler",
+      "user": "nour",
+      "daily_spend": [
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    {
+      "id": "key-2",
+      "type": "key",
+      "team_id": "team-kepler",
+      "user": "rami",
+      "daily_spend": [
+        0.4,
+        0.5,
+        0.3,
+        0.4,
+        0.5,
+        0.4,
+        0.3,
+        0.4,
+        0.5,
+        0.4,
+        0.4,
+        0.5
+      ]
+    },
+    {
+      "id": "key-3",
+      "type": "key",
+      "team_id": "team-kepler",
+      "user": "lea",
+      "daily_spend": [
+        0.3,
+        0.4,
+        0.5,
+        0.4,
+        0.3,
+        0.4,
+        0.5,
+        0.4,
+        0.3,
+        0.4,
+        0.4,
+        11.0
+      ]
+    },
+    {
+      "id": "key-4",
+      "type": "key",
+      "team_id": "team-kepler",
+      "user": "tarek",
+      "daily_spend": [
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "propose_key_disable",
+      "target": "key-3"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

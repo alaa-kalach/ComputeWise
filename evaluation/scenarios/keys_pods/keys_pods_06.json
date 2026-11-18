@@ -1,0 +1,104 @@
+{
+  "id": "keys_pods_06",
+  "area": "keys_pods",
+  "split": "tune",
+  "strict": true,
+  "description": "Yara uses her key heavily but steadily, about $2 a day every day. Nothing is faulty: no jump, and the team's only pod is stopped (its disk costs a few cents a day). At this rate the team runs out in about 6 days, before the month ends. The right answer is a warning that names Yara's key as the driver; disabling a steadily used key is wrong.",
+  "period": {
+    "days": 30,
+    "day": 15
+  },
+  "teams": [
+    {
+      "id": "team-nova",
+      "name": "FYP Nova",
+      "professor_id": "prof-2",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-nova",
+      "user": "yara",
+      "daily_spend": [
+        1.9,
+        2.1,
+        2.0,
+        1.8,
+        2.2,
+        2.0,
+        1.9,
+        2.1,
+        2.0,
+        2.2,
+        1.8,
+        2.0,
+        2.1,
+        1.9,
+        2.0
+      ]
+    },
+    {
+      "id": "key-2",
+      "type": "key",
+      "team_id": "team-nova",
+      "user": "sami",
+      "daily_spend": [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3
+      ]
+    },
+    {
+      "id": "pod-1",
+      "type": "pod",
+      "team_id": "team-nova",
+      "user": "sami",
+      "status": "stopped",
+      "hourly_usd": 0.12,
+      "idle_hours": 0,
+      "daily_spend": [
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07,
+        0.07
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-nova"
+    }
+  ],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

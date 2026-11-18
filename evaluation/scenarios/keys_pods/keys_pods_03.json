@@ -1,0 +1,78 @@
+{
+  "id": "keys_pods_03",
+  "area": "keys_pods",
+  "split": "tune",
+  "strict": true,
+  "description": "A pod has run all month on a cheap GPU and its GPU has been unused for only 10 hours (overnight, between training runs). The team is at 42% of $120 on day 16 and will finish the month within budget. A short pause is normal use, so nobody needs to act.",
+  "period": {
+    "days": 30,
+    "day": 16
+  },
+  "teams": [
+    {
+      "id": "team-orion",
+      "name": "Orion Lab",
+      "professor_id": "prof-1",
+      "balance_usd": 120.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-1",
+      "type": "key",
+      "team_id": "team-orion",
+      "user": "hadi",
+      "daily_spend": [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3
+      ]
+    },
+    {
+      "id": "pod-1",
+      "type": "pod",
+      "team_id": "team-orion",
+      "user": "maya",
+      "status": "running",
+      "hourly_usd": 0.12,
+      "idle_hours": 10,
+      "daily_spend": [
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88,
+        2.88
+      ]
+    }
+  ],
+  "expected": [],
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}
