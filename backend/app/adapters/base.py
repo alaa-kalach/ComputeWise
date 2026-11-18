@@ -74,6 +74,10 @@ class UsageReading:
 class ProviderAdapter(abc.ABC):
     provider: Provider
     supports_limits: bool = False
+    # True when fetch_usage returns BILLED totals that trail live spend (RunPod: billing lags).
+    # The sync job then estimates spend itself (price x time) and never records less than
+    # the bill (D15). False: fetch_usage is already the live total (OpenRouter, the mocks).
+    usage_lags: bool = False
 
     @abc.abstractmethod
     def issue(self, request: IssueRequest) -> IssuedAccess:

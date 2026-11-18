@@ -152,7 +152,7 @@ def parse_pod(pod: dict[str, Any]) -> PodStatus:
 class RunPodAdapter(ProviderAdapter):
     provider = Provider.runpod
     supports_limits = False  # RunPod has no per-pod cap: the watchdog stops pods instead
-
+    usage_lags = True  # fetch_usage reads billing, which lags: the sync estimates on top (D15)
     def __init__(self, secret: str, *, base_url: str = BASE_URL, client: httpx.Client | None = None):
         if not secret:
             raise ValueError("RunPod API key is missing")

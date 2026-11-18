@@ -16,6 +16,8 @@ They copy the real providers where it matters:
 - A running pod costs its GPU price per hour, a stopped pod costs disk storage per hour,
   and a terminated pod costs nothing. RunPod has no per-pod limit.
 - WORLD.outage = True makes every call fail, to test what happens when a provider is down.
+- WORLD.lagging_billing = True makes the fake RunPod report only what was BILLED, like the
+  real one: usage reads stay behind until WORLD.bill() catches the bill up (D15).
 
 Try it:  python -m app.adapters.mock
 """
@@ -75,6 +77,7 @@ class MockResource:
     limit_usd: Decimal | None = None
     cost_per_hr: Decimal = Decimal("0")
     storage_cost_per_hr: Decimal = Decimal("0")
+    billed_usd: Decimal = Decimal("0")  # what RunPod's billing shows so far (see lagging_billing)
 
 
 @dataclass
@@ -84,6 +87,7 @@ class MockWorld:
     resources: dict[str, MockResource] = field(default_factory=dict)
     now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     outage: bool = False
+    lagging_billing: bool = False
 
     def spend(self, external_ref: str, usd: Decimal | int | str) -> Decimal:
         """Generate usage now. Returns what was actually charged: a key can't go past its
@@ -112,9 +116,15 @@ class MockWorld:
             r.total_usd = _round(r.total_usd + rate * delta)
         self.now += timedelta(hours=float(delta))
 
+    def bill(self) -> None:
+        """RunPod's billing catches up: every pod's bill now equals what it really cost."""
+        for r in self.resources.values():
+            r.billed_usd = r.total_usd
+
     def reset(self) -> None:
         self.resources.clear()
         self.outage = False
+        self.lagging_billing = False
 
     def get(self, external_ref: str) -> MockResource:
         try:
@@ -152,7 +162,8 @@ class _MockBase(ProviderAdapter):
             if r is None or r.provider is not self.provider:
                 out[ref] = UsageReading(ref, Decimal("0"), ResourceState.gone)
             else:
-                out[ref] = UsageReading(ref, r.total_usd, r.state, r.limit_usd)
+                total = r.billed_usd if self.usage_lags else r.total_usd
+                out[ref] = UsageReading(ref, total, r.state, r.limit_usd)
         return out
 
     def revoke(self, external_ref: str) -> None:
@@ -200,6 +211,10 @@ class MockOpenRouterAdapter(_MockBase):
 class MockRunPodAdapter(_MockBase):
     provider = Provider.runpod
     supports_limits = False
+
+    @property  # type: ignore[override]
+    def usage_lags(self) -> bool:
+        return self._world.lagging_billing
 
     def estimate_hourly_cost(self, spec: dict[str, Any]) -> Decimal:
         gpu = spec.get("gpu_type") or spec.get("gpu_type_id") or DEFAULT_GPU
