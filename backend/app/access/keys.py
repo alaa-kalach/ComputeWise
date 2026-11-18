@@ -6,24 +6,32 @@ POST /keys (proposed in the contract, owner Person 3):
     the team's remaining, or his own member limit if lower)
   - the plaintext key is returned in THIS response only. We store the key's hash, never the key.
   - asking again returns 409.
+
+Added for the dashboards (C3, C4), as the mocks already behave (frontend/src/mocks/handlers.ts):
+GET /keys                   keys in scope, never the secret: a student sees his own, a
+                            professor every key in his groups, the department all (read only)
+POST /keys/{id}/revoke      the group's professor only (D21). The key is disabled on
+                            OpenRouter (its usage stays readable) and never turned back on.
 """
 
 import logging
 import uuid
+from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlmodel import select
 
-from app.access.credentials import resolve_credential
+from app.access.credentials import adapter_for_credential, resolve_credential
 from app.access.pods import available_budget
 from app.access.requests import require_approved_access
-from app.adapters import AdapterError, IssueRequest, ProviderUnavailable, get_adapter
+from app.adapters import AdapterError, IssueRequest, ProviderUnavailable, ResourceNotFound, get_adapter
 from app.core.audit import write_audit
 from app.core.money import Money, quantize
 from app.core.scoping import ScopeDep
-from app.models import IssuedResource, Provider, ResourceStatus
+from app.models import Group, IssuedResource, Provider, ResourceStatus, UsageSnapshot, User
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["access"])
@@ -102,3 +110,81 @@ def get_my_key(body: KeyRequest, scope: ScopeDep) -> IssuedKeyOut:
             log.error("Key %s issued but not recorded, and deleting it failed", issued.external_ref)
         raise
     return IssuedKeyOut(resource_id=res.id, key=issued.secret, limit_usd=limit)
+
+
+# ====================================================================== C3 / C4: list and revoke
+class KeySummaryOut(BaseModel):
+    id: uuid.UUID
+    group_id: uuid.UUID
+    group_name: str
+    status: Literal["active", "capped", "disabled"]
+    limit_usd: Money | None
+    usage_usd: Money  # total since the key was issued, as of the last sync
+    created_at: datetime
+    user_id: uuid.UUID
+    user_name: str
+
+
+def _usage(session, resource_id: uuid.UUID) -> Decimal:
+    total = session.exec(
+        select(UsageSnapshot.cumulative_usd)
+        .where(UsageSnapshot.issued_resource_id == resource_id)
+        .order_by(UsageSnapshot.polled_at.desc())  # type: ignore[attr-defined]
+        .limit(1)
+    ).first()
+    return quantize(total if total is not None else Decimal(0))
+
+
+@router.get("/keys", response_model=list[KeySummaryOut])
+def list_keys(scope: ScopeDep) -> list[KeySummaryOut]:
+    session = scope.session
+    q = (
+        scope.issued_resources()
+        .where(IssuedResource.provider == Provider.openrouter)
+        .order_by(IssuedResource.created_at.desc())  # type: ignore[attr-defined]
+    )
+    out = []
+    for res in session.exec(q).all():
+        group, user = session.get(Group, res.group_id), session.get(User, res.user_id)
+        out.append(KeySummaryOut(
+            id=res.id,
+            group_id=res.group_id,
+            group_name=group.name if group else "",
+            status=res.status.value,
+            limit_usd=res.current_limit,
+            usage_usd=_usage(session, res.id),
+            created_at=res.created_at,
+            user_id=res.user_id,
+            user_name=user.name if user else "",
+        ))
+    return out
+
+
+@router.post("/keys/{key_id}/revoke", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_key(key_id: uuid.UUID, scope: ScopeDep) -> Response:
+    session = scope.session
+    res = scope.require_issued_resource(key_id)  # 404 outside scope
+    if res.provider != Provider.openrouter:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Key not found")
+    scope.require_manage_group(res.group_id)  # 403: only the group's professor (D21)
+    if res.status == ResourceStatus.disabled:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This key is already revoked")
+
+    adapter = adapter_for_credential(session, res.credential_id)
+    gone = False
+    if adapter is not None:  # None: the credential was revoked, so the key is unusable anyway
+        try:
+            adapter.stop(res.external_ref)  # disable on OpenRouter
+        except ResourceNotFound:
+            gone = True
+        except AdapterError as exc:
+            raise _provider_error(exc) from None
+
+    res.status = ResourceStatus.disabled
+    session.add(res)
+    write_audit(
+        session, scope.me, "key.revoke", "issued_resource", res.id,
+        {"group_id": res.group_id, "user_id": res.user_id, "by": "professor", "already_gone": gone},
+    )
+    session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
