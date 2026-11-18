@@ -75,7 +75,7 @@ def build_executors(session: Session, me) -> dict[str, Callable]:
         except AdapterError as exc:
             raise RuntimeError(f"RunPod refused: {exc}") from None
         res.status = ResourceStatus.stopped
-        res.details = {**res.details, "ready": None, "stopped_by": "escalation"}
+        res.details = {**res.details, "ready": None, "stopped_by": "professor"}
         session.add(res)
         write_audit(session, me, "pod.stop", "issued_resource", res.id,
                     {"group_id": res.group_id, "user_id": res.user_id, "by": "escalation", "escalation_id": e.id})

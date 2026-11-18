@@ -5,7 +5,13 @@ Pure function: numbers in, numbers out.
 """
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timezone
 from typing import Mapping, Sequence
+
+from sqlmodel import Session
+
+from ._data import daily_spend, month_entries
 
 
 def detect_spend_anomalies(
@@ -43,3 +49,15 @@ def detect_spend_anomalies(
             )
     flagged.sort(key=lambda a: a["latest_usd"] - a["baseline_usd"], reverse=True)
     return flagged
+
+
+def tool_detect_spend_anomalies(session: Session, team_id: str, now: datetime | None = None) -> dict:
+    """Agent tool: flag keys or pods of one team whose latest day jumped, from the ledger."""
+    try:
+        gid = uuid.UUID(str(team_id))
+    except ValueError:
+        return {"status": "failed", "detail": f"unknown team: {team_id}"}
+    now = now or datetime.now(timezone.utc)
+    entries = month_entries(session, gid, now)
+    by_resource = daily_spend(entries, lambda e: str(e.resource_id), now)
+    return {"status": "ok", "team_id": str(gid), "anomalies": detect_spend_anomalies(by_resource)}

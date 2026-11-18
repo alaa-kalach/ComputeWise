@@ -5,7 +5,13 @@ the result; it never does the arithmetic itself.
 """
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timezone
 from typing import Optional, Sequence
+
+from sqlmodel import Session
+
+from ._data import daily_spend, month_entries, period_info
 
 
 def forecast_spend(
@@ -57,3 +63,17 @@ def forecast_spend(
         "will_exceed": will_exceed,
         "days_until_runout": days_until_runout,
     }
+
+
+def tool_forecast_spend(session: Session, team_id: str, now: datetime | None = None) -> dict:
+    """Agent tool: forecast one team's spend for this month from the real ledger."""
+    try:
+        gid = uuid.UUID(str(team_id))
+    except ValueError:
+        return {"status": "failed", "detail": f"unknown team: {team_id}"}
+    now = now or datetime.now(timezone.utc)
+    balance, days_in_period = period_info(session, gid, now)
+    series = daily_spend(month_entries(session, gid, now), lambda e: "team", now).get("team", [0.0] * now.day)
+    if balance <= 0 and sum(series) == 0:
+        return {"status": "failed", "detail": f"unknown team: {team_id}"}
+    return {"status": "ok", "team_id": str(gid), **forecast_spend(series, days_in_period, balance)}
