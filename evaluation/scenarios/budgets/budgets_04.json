@@ -1,0 +1,90 @@
+{
+  "id": "budgets_04",
+  "area": "budgets",
+  "description": "A pod that is actually working (GPU idle only 1 hour) costs $4.08 a day and will use up the team's last $7 in under 2 days. The team should be warned; stopping a working pod is the hard limit's job at 100%, not a proposal.",
+  "period": {
+    "days": 30,
+    "day": 20
+  },
+  "teams": [
+    {
+      "id": "team-draco",
+      "name": "FYP Draco",
+      "professor_id": "prof-1",
+      "balance_usd": 40.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "pod-d1",
+      "type": "pod",
+      "team_id": "team-draco",
+      "user": "lea",
+      "status": "running",
+      "hourly_usd": 0.17,
+      "idle_hours": 1,
+      "daily_spend": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4.08,
+        4.08,
+        4.08,
+        4.08,
+        4.08,
+        4.08,
+        4.08
+      ]
+    },
+    {
+      "id": "key-d1",
+      "type": "key",
+      "team_id": "team-draco",
+      "user": "fadi",
+      "daily_spend": [
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-draco"
+    }
+  ],
+  "strict": true,
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

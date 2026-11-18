@@ -1,0 +1,66 @@
+{
+  "id": "budgets_01",
+  "area": "budgets",
+  "description": "The team used 85% of its budget in the first 5 days, then spent nothing for a week. A team that has stopped spending is not in trouble (the design's own example), so nobody should be bothered.",
+  "period": {
+    "days": 30,
+    "day": 12
+  },
+  "teams": [
+    {
+      "id": "team-orion",
+      "name": "FYP Orion",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-o1",
+      "type": "key",
+      "team_id": "team-orion",
+      "user": "rami",
+      "daily_spend": [
+        5,
+        6,
+        5,
+        6,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "key-o2",
+      "type": "key",
+      "team_id": "team-orion",
+      "user": "nour",
+      "daily_spend": [
+        3,
+        4,
+        3,
+        3,
+        3.5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "expected": [],
+  "strict": true,
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

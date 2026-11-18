@@ -1,0 +1,67 @@
+{
+  "id": "budgets_06",
+  "area": "budgets",
+  "description": "Rollover: the team has $100 this month ($50 plus $50 carried over). At 40% on day 10 it looks safe, but it spends $4 a day and needs about $120, so it runs out around day 25.",
+  "period": {
+    "days": 30,
+    "day": 10
+  },
+  "teams": [
+    {
+      "id": "team-pavo",
+      "name": "FYP Pavo",
+      "professor_id": "prof-1",
+      "balance_usd": 100.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-p1",
+      "type": "key",
+      "team_id": "team-pavo",
+      "user": "rita",
+      "daily_spend": [
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5
+      ]
+    },
+    {
+      "id": "key-p2",
+      "type": "key",
+      "team_id": "team-pavo",
+      "user": "elie",
+      "daily_spend": [
+        1.5,
+        1.5,
+        1.5,
+        1.5,
+        1.5,
+        1.5,
+        1.5,
+        1.5,
+        1.5,
+        1.5
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-pavo"
+    }
+  ],
+  "strict": true,
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

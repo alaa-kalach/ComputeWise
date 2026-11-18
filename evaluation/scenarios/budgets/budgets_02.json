@@ -1,0 +1,89 @@
+{
+  "id": "budgets_02",
+  "area": "budgets",
+  "description": "The team used its whole $50 on day 15. The hard limit already stopped its pod and capped its key, so nothing has been spent for a week. There is nothing left to warn about or stop.",
+  "period": {
+    "days": 30,
+    "day": 22
+  },
+  "teams": [
+    {
+      "id": "team-vega",
+      "name": "FYP Vega",
+      "professor_id": "prof-1",
+      "balance_usd": 50.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "pod-v1",
+      "type": "pod",
+      "team_id": "team-vega",
+      "user": "karim",
+      "status": "stopped",
+      "hourly_usd": 0.25,
+      "idle_hours": 168,
+      "daily_spend": [
+        0,
+        0,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "key-v1",
+      "type": "key",
+      "team_id": "team-vega",
+      "user": "maya",
+      "daily_spend": [
+        0.5,
+        0.5,
+        1,
+        0.5,
+        0.5,
+        1,
+        0.5,
+        0.5,
+        1,
+        0.5,
+        0.5,
+        1,
+        0.5,
+        0.5,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "expected": [],
+  "strict": true,
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}

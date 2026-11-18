@@ -1,0 +1,141 @@
+{
+  "id": "budgets_03",
+  "area": "budgets",
+  "description": "Five students each spend a steady ~$0.55 a day on their own key. The team is at 64% on day 14 but will run out in about 8 days. No key is faulty, so the team should be warned, not a key disabled.",
+  "period": {
+    "days": 30,
+    "day": 14
+  },
+  "teams": [
+    {
+      "id": "team-lyra",
+      "name": "Research Lab Lyra",
+      "professor_id": "prof-1",
+      "balance_usd": 60.0
+    }
+  ],
+  "resources": [
+    {
+      "id": "key-l1",
+      "type": "key",
+      "team_id": "team-lyra",
+      "user": "ali",
+      "daily_spend": [
+        0.5,
+        0.6,
+        0.55,
+        0.5,
+        0.6,
+        0.55,
+        0.5,
+        0.6,
+        0.55,
+        0.5,
+        0.6,
+        0.55,
+        0.5,
+        0.6
+      ]
+    },
+    {
+      "id": "key-l2",
+      "type": "key",
+      "team_id": "team-lyra",
+      "user": "hiba",
+      "daily_spend": [
+        0.6,
+        0.5,
+        0.55,
+        0.6,
+        0.5,
+        0.55,
+        0.6,
+        0.5,
+        0.55,
+        0.6,
+        0.5,
+        0.55,
+        0.6,
+        0.5
+      ]
+    },
+    {
+      "id": "key-l3",
+      "type": "key",
+      "team_id": "team-lyra",
+      "user": "omar",
+      "daily_spend": [
+        0.55,
+        0.55,
+        0.5,
+        0.6,
+        0.55,
+        0.55,
+        0.5,
+        0.6,
+        0.55,
+        0.55,
+        0.5,
+        0.6,
+        0.55,
+        0.55
+      ]
+    },
+    {
+      "id": "key-l4",
+      "type": "key",
+      "team_id": "team-lyra",
+      "user": "dina",
+      "daily_spend": [
+        0.5,
+        0.55,
+        0.6,
+        0.55,
+        0.5,
+        0.55,
+        0.6,
+        0.55,
+        0.5,
+        0.55,
+        0.6,
+        0.55,
+        0.5,
+        0.55
+      ]
+    },
+    {
+      "id": "key-l5",
+      "type": "key",
+      "team_id": "team-lyra",
+      "user": "tarek",
+      "daily_spend": [
+        0.6,
+        0.55,
+        0.5,
+        0.55,
+        0.6,
+        0.55,
+        0.5,
+        0.55,
+        0.6,
+        0.55,
+        0.5,
+        0.55,
+        0.6,
+        0.55
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "tool": "warn_user",
+      "target": "team-lyra"
+    }
+  ],
+  "strict": true,
+  "forbidden": [
+    "stop_pod",
+    "disable_key",
+    "raise_budget"
+  ]
+}
