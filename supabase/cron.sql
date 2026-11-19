@@ -2,7 +2,8 @@
 --
 --   computewise-sync        every 5 minutes (D4)         POST /jobs/sync
 --   computewise-rollover    1st of the month, 00:05 UTC  POST /jobs/rollover
---   computewise-agent-*     daily and weekly             POST /jobs/agent   (PENDING, see below)
+--   computewise-agent-daily  05:00 UTC every day         POST /jobs/agent   one call per team
+--   computewise-agent-weekly Mondays 05:30 UTC           POST /jobs/agent   one call per professor
 --
 -- All times are UTC, like the ledger's months (period_of(utcnow())).
 -- The 5-minute sync also keeps the free Supabase project awake (D5).
@@ -79,42 +80,54 @@ select cron.schedule(
   $$
 );
 
--- PENDING (Person 3): the agent runs, daily at 05:00 UTC (07:00 Beirut) for warnings and
--- Mondays at 05:30 UTC for the weekly reports. POST /jobs/agent is not on main yet, and
--- what each run must send (daily vs weekly, one team per call?) is still to be agreed.
--- When it is, fill in the body and remove the comment marks.
+-- The agent (C5). POST /jobs/agent reviews ONE subject per call, because a serverless
+-- function has a time limit, so each schedule sends one request per team or per professor.
+-- pg_net queues the requests and sends them in the background, so the cron job itself
+-- finishes at once. The agent only reads, warns and proposes; a human approves.
 --
--- select cron.schedule(
---   'computewise-agent-daily',
---   '0 5 * * *',
---   $$
---   select net.http_post(
---     url := (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_api_url') || '/jobs/agent',
---     headers := jsonb_build_object(
---       'Content-Type', 'application/json',
---       'X-Job-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_job_secret')
---     ),
---     body := '{}'::jsonb,  -- TODO(Person 3): what the daily run sends
---     timeout_milliseconds := 30000
---   );
---   $$
--- );
---
--- select cron.schedule(
---   'computewise-agent-weekly',
---   '30 5 * * 1',
---   $$
---   select net.http_post(
---     url := (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_api_url') || '/jobs/agent',
---     headers := jsonb_build_object(
---       'Content-Type', 'application/json',
---       'X-Job-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_job_secret')
---     ),
---     body := '{}'::jsonb,  -- TODO(Person 3): what the weekly run sends
---     timeout_milliseconds := 30000
---   );
---   $$
--- );
+-- Daily at 05:00 UTC (07:00 Beirut): every team of every current professor, for warnings and
+-- proposals to the professor. It runs at the same minute as a sync; that is fine, because
+-- the agent only reads the ledger and the sync has its own lock.
+select cron.schedule(
+  'computewise-agent-daily',
+  '0 5 * * *',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_api_url') || '/jobs/agent',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'X-Job-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_job_secret')
+    ),
+    body := jsonb_build_object('team_id', g.id),
+    timeout_milliseconds := 60000
+  )
+  from public.groups g
+  join public.professors p on p.id = g.professor_id
+  where p.removed_at is null;
+  $$
+);
+
+-- Mondays at 05:30 UTC: the department review, one request per current professor (a
+-- professor trending past his grant ceiling, or unusual spend on a department credential).
+-- Until get_professor_budget and escalate_to_department exist, these calls answer 503
+-- "agent tools are not ready" and do nothing; they start working as soon as those land.
+select cron.schedule(
+  'computewise-agent-weekly',
+  '30 5 * * 1',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_api_url') || '/jobs/agent',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'X-Job-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'computewise_job_secret')
+    ),
+    body := jsonb_build_object('professor_id', p.id),
+    timeout_milliseconds := 60000
+  )
+  from public.professors p
+  where p.removed_at is null;
+  $$
+);
 
 -- ---------------------------------------------------------------------------------------
 -- CHECKING IT
