@@ -26,11 +26,12 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+// Same lifetime as the login (see supabase.ts): the next person does not inherit your view.
 const VIEW_KEY = "computewise.view";
 
 function storedView(): Role | null {
   try {
-    return (localStorage.getItem(VIEW_KEY) as Role | null) ?? null;
+    return (sessionStorage.getItem(VIEW_KEY) as Role | null) ?? null;
   } catch {
     return null;
   }
@@ -38,8 +39,8 @@ function storedView(): Role | null {
 
 function rememberView(role: Role | null): void {
   try {
-    if (role) localStorage.setItem(VIEW_KEY, role);
-    else localStorage.removeItem(VIEW_KEY);
+    if (role) sessionStorage.setItem(VIEW_KEY, role);
+    else sessionStorage.removeItem(VIEW_KEY);
   } catch {
     /* storage blocked: the view just isn't remembered */
   }

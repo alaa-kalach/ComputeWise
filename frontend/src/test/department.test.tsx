@@ -14,6 +14,7 @@ beforeEach(() => {
   setMockPersona(null);
   try {
     localStorage.clear();
+    sessionStorage.clear();
   } catch {
     /* ignore */
   }

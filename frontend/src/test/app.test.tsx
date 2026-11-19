@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { App } from "../App";
 import { installMocks, resetWorld, setMockPersona } from "../mocks";
+import { world } from "../mocks/world";
 
 beforeEach(() => {
   installMocks();
@@ -14,6 +15,7 @@ beforeEach(() => {
   setMockPersona(null);
   try {
     localStorage.clear();
+    sessionStorage.clear();
   } catch {
     /* ignore */
   }
@@ -82,5 +84,19 @@ describe("C4: user dashboard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Launch RTX A5000" }));
     expect(await screen.findByText(/RunPod is starting the machine/)).toBeInTheDocument();
     expect(screen.getAllByText("Starting").length).toBeGreaterThan(0);
+  });
+
+  it("updates the pod's tag when it is already up by the time you connect", async () => {
+    await signInAs(/Omar Itani/);
+    await userEvent.click(await screen.findByRole("button", { name: "Launch a pod" }));
+    await userEvent.click(await screen.findByRole("radio", { name: /RTX A5000/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Launch RTX A5000" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Hide connection" }));
+    // RunPod finished starting while the details were closed; the list still says "Starting".
+    for (const p of world.pods) if (p.state === "starting") p.ready_at = 0;
+    const card = screen.getByText(/RTX A5000/).closest(".item") as HTMLElement;
+    expect(within(card).getByText("Starting")).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole("button", { name: "Connect" }));
+    expect(await within(card).findByText("Running")).toBeInTheDocument();
   });
 });

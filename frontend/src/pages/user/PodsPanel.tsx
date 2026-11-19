@@ -132,7 +132,9 @@ function PodItem({ pod, open, onToggle, onChange }: { pod: Pod; open: boolean; o
           </Button>
         )}
       </div>
-      {open && (pod.state === "running" || pod.state === "starting") && <Connection podId={pod.id} onReady={onChange} />}
+      {open && (pod.state === "running" || pod.state === "starting") && (
+        <Connection podId={pod.id} listSaysStarting={pod.state === "starting"} onReady={onChange} />
+      )}
 
       <Modal
         open={confirmTerminate}
@@ -158,14 +160,24 @@ function PodItem({ pod, open, onToggle, onChange }: { pod: Pod; open: boolean; o
 }
 
 /** Polls the pod until RunPod reports it ready, then shows how to connect. */
-function Connection({ podId, onReady }: { podId: string; onReady: () => Promise<void> }) {
+function Connection({
+  podId,
+  listSaysStarting,
+  onReady,
+}: {
+  podId: string;
+  listSaysStarting: boolean;
+  onReady: () => Promise<void>;
+}) {
   const [detail, setDetail] = useState<PodDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
     let timer: ReturnType<typeof setTimeout>;
-    let wasStarting = false;
+    // The list may still say "Starting" even if the pod is already up when we first ask
+    // (a fast start, or details opened late): reload the list then too, or its tag stays wrong.
+    let wasStarting = listSaysStarting;
     const poll = async () => {
       try {
         const d = await getPod(podId);
@@ -187,7 +199,7 @@ function Connection({ podId, onReady }: { podId: string; onReady: () => Promise<
       live = false;
       clearTimeout(timer);
     };
-  }, [podId, onReady]);
+  }, [podId, listSaysStarting, onReady]);
 
   if (error) return <Notice kind="error">{error}</Notice>;
   if (!detail) return <p className="muted" role="status">Checking the pod…</p>;
