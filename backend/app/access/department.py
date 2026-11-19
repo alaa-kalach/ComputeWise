@@ -358,4 +358,33 @@ def set_budget_setting(professor_id: uuid.UUID, body: BudgetSettingIO, scope: Sc
     return _out(session, prof)
 
 
-__all__ = ["CEILING_NOTE", "router"]
+# ====================================================================== Sync now (C6)
+# The department admin's "Sync now" button (D4). pg_cron calls POST /jobs/sync with the job
+# secret; a person calls this one with his login instead. Same run_sync, same database lock,
+# so a click during a scheduled run is simply skipped.
+sync_router = APIRouter(prefix="/department", tags=["department"])
+
+
+class SyncNowOut(BaseModel):
+    resources_polled: int
+    spend_entries: int
+    skipped: bool  # another sync was still running
+    errors: int  # credentials the providers did not answer for
+
+
+@sync_router.post("/sync", response_model=SyncNowOut)
+def sync_now(scope: ScopeDep) -> SyncNowOut:
+    if not scope.me.is_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the department admin can run a sync by hand")
+    from app.jobs.sync import run_sync  # here, not at the top: jobs imports access modules
+
+    result = run_sync(scope.session)  # commits its own work
+    out = SyncNowOut(resources_polled=result.resources_polled, spend_entries=result.spend_entries,
+                     skipped=result.skipped, errors=len(result.errors))
+    write_audit(scope.session, scope.me, "sync.manual", "department",
+                sorted(scope.me.admin_department_ids)[0], out.model_dump())
+    scope.session.commit()
+    return out
+
+
+__all__ = ["CEILING_NOTE", "router", "sync_router"]

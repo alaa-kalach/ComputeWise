@@ -1,6 +1,6 @@
 // Typed calls, one per contract operation. Add new ones here, not inline in pages.
 
-import { api } from "./client";
+import { api, apiText } from "./client";
 import type {
   AccessRequest,
   GpuOption,
@@ -23,7 +23,13 @@ import type {
   GroupDetail,
   Member,
   MemberBudget,
-  MemberStatus
+  MemberStatus,
+  BillingReport,
+  BudgetSetting,
+  Professor,
+  ProfessorAdded,
+  SyncResult,
+  TrendPoint,
 } from "./types";
 
 const q = (params: Record<string, string | boolean | undefined>) => {
@@ -93,3 +99,17 @@ export const rejectEscalation = (id: string, note?: string) =>
 
 // Person 3: weekly report. Without week_start the server uses the last full week (Monday to Sunday).
 export const getWeeklyReport = (week_start?: string) => api<WeeklyReport>("GET", `/reports/weekly${q({ week_start })}`);
+
+// Person 1 (C6): the department dashboard.
+export const listProfessors = () => api<Professor[]>("GET", "/professors");
+export const addProfessor = (email: string, name: string) =>
+  api<ProfessorAdded>("POST", "/professors", { email, name });
+export const removeProfessor = (id: string) => api<void>("DELETE", `/professors/${id}`);
+export const setProfessorBudget = (id: string, setting: BudgetSetting) =>
+  api<Professor>("PUT", `/professors/${id}/budget-setting`, setting);
+export const getBillingReport = (period: string) => api<BillingReport>("GET", `/reports/billing${q({ period })}`);
+/** The same report as CSV text, for the download button. */
+export const getBillingCsv = (period: string) => apiText("GET", `/reports/billing${q({ period, format: "csv" })}`);
+export const getSpendTrend = () => api<TrendPoint[]>("GET", "/reports/trend");
+/** "Sync now": the department admin runs the usage sync without waiting for the next 5 minutes. */
+export const syncNow = () => api<SyncResult>("POST", "/department/sync");

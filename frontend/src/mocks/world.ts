@@ -2,7 +2,7 @@
 // budgets, keys and pods, so screens built on mocks show the numbers the real API will.
 // State lives in memory and resets on reload (resetWorld()).
 
-import type { AccessRequest, BudgetPolicy, KeySummary, Me, Pod, Provider, Role } from "../lib/api/types";
+import type { AccessRequest, BudgetPolicy, BudgetSetting, Escalation, KeySummary, Me, Pod, Provider, Role } from "../lib/api/types";
 
 export interface Persona {
   key: string;
@@ -78,8 +78,22 @@ export interface LedgerRow {
   provider?: Provider; // spend rows only
 }
 
+/** C6: a professor as the department sees him. The seed has two; the admin can add more. */
+export interface MockProfessor {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  removed: boolean;
+}
+
 export interface World {
   period: string;
+  /** C6: each professor's budget setting from the department (CEILINGS is only the start value). */
+  settings: Record<string, BudgetSetting>;
+  professors: MockProfessor[];
+  escalations: Escalation[];
+  lastSync: string;
   ledger: LedgerRow[];
   /** user sub-budgets: `${group}:${user}` -> monthly amount (D9) */
   userPolicies: Record<string, string>;
@@ -118,8 +132,30 @@ function freshWorld(): World {
     stopped_by: state === "stopped" ? ("owner" as const) : null, spent_this_month_usd: spent,
     created_at: lastMonth, user, ready_at: state === "running" ? 0 : null, jupyter: true,
   });
+  const setting = (ceiling: string | null): BudgetSetting =>
+    ceiling === null
+      ? { mode: "tracking", monthly_amount: null, rollover: true, rollover_cap: null }
+      : { mode: "ceiling", monthly_amount: Number(ceiling).toFixed(4), rollover: true, rollover_cap: null };
   return {
     period: period(),
+    settings: Object.fromEntries(Object.entries(CEILINGS).map(([id, c]) => [id, setting(c)])),
+    professors: [
+      { id: PROF_A, user_id: USER_IDS.karim, name: "Prof. Karim Nassar", email: "karim.nassar@cs.example.edu", removed: false },
+      { id: PROF_B, user_id: USER_IDS.rania, name: "Prof. Rania Khoury", email: "rania.khoury@cs.example.edu", removed: false },
+    ],
+    escalations: [
+      {
+        id: "esc-dept-1", kind: "escalate_to_department", target: PROF_A, recipient_type: "department", group_id: null,
+        status: "pending", created_at: t, decided_at: null, note: null, result: null,
+        reason: [
+          "ISSUE: Prof. Karim Nassar's teams are on course to need more than his $400 ceiling this month.",
+          "EVIDENCE: FYP Team 2 has used 82% of its $50 after 10 days; projected demand across his teams is about $430.",
+          "PROPOSED ACTION: Talk to Prof. Nassar about raising his ceiling or slowing FYP Team 2.",
+          "IF IGNORED: FYP Team 2 runs out around day 12 and its pod is stopped automatically.",
+        ].join("\n"),
+      },
+    ],
+    lastSync: new Date(Date.now() - 3 * 60_000).toISOString(),
     ledger: [
       { group_id: FYP1, user: null, type: "rollover", amount: "50" },
       { group_id: FYP1, user: null, type: "allocation", amount: "50" },

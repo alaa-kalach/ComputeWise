@@ -14,8 +14,13 @@ import type {
   Totals,
   Provider,
   MemberBudget,
+  BillingRow,
+  Professor,
+  ProfessorAdded,
+  SyncResult,
+  TrendPoint,
 } from "../lib/api/types";
-import { CEILINGS, FUNDING, GROUPS, MEMBERS, PERSONAS, USER_IDS, personaMe, world, type LedgerRow, type Persona } from "./world";
+import { DEPT, FUNDING, GROUPS, MEMBERS, PERSONAS, PROF_A, PROF_B, USER_IDS, personaMe, world, type LedgerRow, type MockProfessor, type Persona } from "./world";
 
 // ------------------------------------------------------------------ who is calling
 let current: Persona | null = null;
@@ -145,7 +150,7 @@ const teamFunding = (groups: string[]) =>
 const myGroups = (p: Persona) => GROUPS.filter((g) => g.professor_id === p.professor_id).map((g) => g.id);
 
 function checkCeiling(p: Persona, extra: number): void {
-  const ceiling = CEILINGS[p.professor_id!];
+  const ceiling = world.settings[p.professor_id!]?.monthly_amount ?? null;
   if (ceiling == null) return; // tracking only
   const left = units(ceiling) - teamFunding(myGroups(p));
   if (extra > left) {
@@ -179,6 +184,83 @@ function memberBudget(group: string, key: string): MemberBudget {
     limit: world.userPolicies[`${group}:${key}`] ? totals(group, key) : null,
   };
 }
+// ------------------------------------------------------------------ C6 (Person 1): department helpers
+function requireAdmin(): Persona {
+  const p = me();
+  if (!p.admin) fail(403, "Only the department admin manages professors");
+  return p;
+}
+
+/** Like the backend: outside your scope is 404, a professor looking at himself is 403. */
+function requireAdminOf(id: string) {
+  const p = me();
+  const prof = world.professors.find((x) => x.id === id && !x.removed);
+  if (!prof || (!p.admin && p.professor_id !== id)) return fail(404, "Professor not found");
+  if (!p.admin) fail(403, "Only the department admin manages professors");
+  return prof;
+}
+
+function professorOut(x: MockProfessor): Professor {
+  return {
+    id: x.id, user_id: x.user_id, name: x.name, email: x.email, department_id: DEPT,
+    budget_setting: world.settings[x.id] ?? { mode: "tracking", monthly_amount: null, rollover: true, rollover_cap: null },
+    group_count: GROUPS.filter((g) => g.professor_id === x.id).length,
+  };
+}
+
+/** Which credential paid, as in the backend seed: Prof. Nassar uses the department's accounts;
+ *  Prof. Khoury pays OpenRouter herself (observed) but uses the department's RunPod (billable). */
+const BILLABLE: Record<string, Record<Provider, boolean>> = {
+  [PROF_A]: { openrouter: true, runpod: true },
+  [PROF_B]: { openrouter: false, runpod: true },
+};
+
+type Units = { professor_id: string; professor_name: string; billable: number; observed: number; unassigned: number; total: number; openrouter: number; runpod: number };
+const emptyRow = (id: string, name: string): Units =>
+  ({ professor_id: id, professor_name: name, billable: 0, observed: 0, unassigned: 0, total: 0, openrouter: 0, runpod: 0 });
+
+function addSpend(row: Units, provider: Provider, amount: number, billable: boolean | undefined): void {
+  row[billable === undefined ? "unassigned" : billable ? "billable" : "observed"] += amount;
+  row[provider] += amount;
+  row.total += amount;
+}
+
+/** Last month's spend in the backend seed (the mock ledger only holds this month). */
+const SEED_LAST_MONTH: [string, Provider, string][] = [[PROF_A, "runpod", "50"], [PROF_B, "runpod", "40"], [PROF_B, "openrouter", "20"]];
+
+function billingRows(period: string): Units[] {
+  const rows = new Map<string, Units>();
+  const row = (prof: string) => {
+    if (!rows.has(prof)) rows.set(prof, emptyRow(prof, world.professors.find((x) => x.id === prof)?.name ?? ""));
+    return rows.get(prof)!;
+  };
+  if (period === world.period) {
+    for (const r of world.ledger.filter((x) => x.type === "spend" && x.provider)) {
+      const prof = GROUPS.find((g) => g.id === r.group_id)!.professor_id;
+      addSpend(row(prof), r.provider!, -units(r.amount), BILLABLE[prof]?.[r.provider!]);
+    }
+  } else if (period === previousPeriod(world.period)) {
+    for (const [prof, provider, amount] of SEED_LAST_MONTH) addSpend(row(prof), provider, units(amount), BILLABLE[prof][provider]);
+  }
+  return [...rows.values()].sort((a, b) => a.professor_name.localeCompare(b.professor_name));
+}
+
+function sumRows(id: string, name: string, rows: Units[]): Units {
+  const t = emptyRow(id, name);
+  for (const r of rows) for (const k of ["billable", "observed", "unassigned", "total", "openrouter", "runpod"] as const) t[k] += r[k];
+  return t;
+}
+
+const rowOut = (r: Units): BillingRow => ({
+  professor_id: r.professor_id, professor_name: r.professor_name, billable: money(r.billable), observed: money(r.observed),
+  unassigned: money(r.unassigned), total: money(r.total), openrouter: money(r.openrouter), runpod: money(r.runpod),
+});
+
+function previousPeriod(period: string): string {
+  const [y, mo] = period.split("-").map(Number);
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
+}
+
 // ------------------------------------------------------------------ routes
 type Route = (m: RegExpMatchArray, body: any, query: URLSearchParams) => unknown; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -200,7 +282,7 @@ const routes: [string, RegExp, Route][] = [
     const p = me();
     if (!p.professor_id) fail(403, "Only professors have a budget summary");
     const groups = myGroups(p);
-    const ceiling = CEILINGS[p.professor_id!];
+    const ceiling = world.settings[p.professor_id!]?.monthly_amount ?? null;
     const allocated = teamFunding(groups);
     const spent = -world.ledger
       .filter((r) => groups.includes(r.group_id) && r.type === "spend")
@@ -211,7 +293,7 @@ const routes: [string, RegExp, Route][] = [
       allocated: money(allocated),
       unallocated: ceiling == null ? null : money(units(ceiling) - allocated),
       spent: money(spent),
-      last_synced_at: new Date(Date.now() - 3 * 60_000).toISOString(),
+      last_synced_at: world.lastSync,
     };
   }],
 
@@ -543,6 +625,135 @@ const routes: [string, RegExp, Route][] = [
     pod.state = "terminated";
     pod.started_at = null;
     return undefined;
+  }],
+
+  // ---------------------------------------------------------------- C6 (Person 1): the department
+  ["GET", /^\/professors$/, () => {
+    const p = me();
+    return world.professors
+      .filter((x) => !x.removed && (p.admin || x.id === p.professor_id))
+      .map(professorOut);
+  }],
+
+  ["POST", /^\/professors$/, (_m, body): ProfessorAdded => {
+    requireAdmin();
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const name = String(body.name ?? "").trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fail(422, "not a valid email address");
+    if (!name) fail(422, "name is empty");
+    let prof = world.professors.find((x) => x.email === email);
+    if (prof && !prof.removed) fail(409, "Already a professor");
+    const known = !!prof || PERSONAS.some((x) => x.email === email);
+    if (prof) {
+      prof.removed = false; // gets the role back, keeps his history
+    } else {
+      const n = world.professors.length + 1;
+      prof = { id: `p-added-${n}`, user_id: `u-added-${n}`, name, email, removed: false };
+      world.professors.push(prof);
+      world.settings[prof.id] = { mode: "tracking", monthly_amount: null, rollover: true, rollover_cap: null };
+    }
+    return { ...professorOut(prof), invited: !known };
+  }],
+
+  ["DELETE", /^\/professors\/([^/]+)$/, (m) => {
+    const prof = requireAdminOf(m[1]);
+    const groups = GROUPS.filter((g) => g.professor_id === prof.id).map((g) => g.id);
+    const activeMember = groups.some((g) => MEMBERS[g].some((k) => !world.suspended.has(`${g}:${k}`)));
+    const live = world.pods.some((x) => groups.includes(x.group_id) && x.state !== "terminated")
+      || world.keys.some((k) => groups.includes(k.group_id) && k.status !== "disabled");
+    if (activeMember || live) {
+      fail(409, "This professor still has groups with active members, keys or pods. "
+        + "He must suspend or remove his members and stop his resources first.");
+    }
+    prof.removed = true;
+    return undefined;
+  }],
+
+  ["PUT", /^\/professors\/([^/]+)\/budget-setting$/, (m, body) => {
+    const prof = requireAdminOf(m[1]);
+    const mode = body.mode;
+    if (mode !== "ceiling" && mode !== "tracking") fail(422, "mode must be ceiling or tracking");
+    const amount = body.monthly_amount ?? null;
+    if (mode === "ceiling" && amount === null) fail(422, "monthly_amount is required for a ceiling");
+    if (mode === "tracking" && amount !== null) fail(422, "monthly_amount must be null for tracking only");
+    if (amount !== null && !(Number(amount) >= 0)) fail(422, "Input should be greater than or equal to 0");
+    if (amount !== null) {
+      const given = teamFunding(GROUPS.filter((g) => g.professor_id === prof.id).map((g) => g.id));
+      if (given > units(amount)) {
+        fail(422, `He has already given his groups $${money(given)} this month; `
+          + `the ceiling must leave at least that much (it would leave $${money(units(amount))}).`);
+      }
+    }
+    world.settings[prof.id] = {
+      mode, monthly_amount: amount === null ? null : money(units(amount)),
+      rollover: body.rollover ?? true,
+      rollover_cap: body.rollover_cap == null ? null : money(units(body.rollover_cap)),
+    };
+    return professorOut(prof);
+  }],
+
+  ["GET", /^\/reports\/billing$/, (_m, _b, query) => {
+    const p = me();
+    const period = query.get("period") ?? "";
+    if (!/^\d{4}-\d{2}$/.test(period)) fail(422, "period must look like YYYY-MM");
+    if (!p.admin && !p.professor_id) fail(403, "only professors and department admins can see billing reports");
+    const all = billingRows(period);
+    const rows = p.admin ? all : all.filter((r) => r.professor_id === p.professor_id);
+    const report = { period, rows: rows.map(rowOut), totals: rowOut(sumRows("TOTAL", "", rows)) };
+    if (query.get("format") === "csv") {
+      const cols = ["professor_id", "professor_name", "period", "billable", "observed", "unassigned", "total", "openrouter", "runpod"] as const;
+      const line = (r: BillingRow) => cols.map((c) => (c === "period" ? period : r[c])).join(",");
+      return [cols.join(","), ...report.rows.map(line), line(report.totals)].join("\n") + "\n";
+    }
+    return report;
+  }],
+
+  ["GET", /^\/reports\/trend$/, (): TrendPoint[] => {
+    if (!me().admin) fail(403, "only the department can see spend trends");
+    return [previousPeriod(world.period), world.period].map((period) => {
+      const t = sumRows("TOTAL", "", billingRows(period));
+      return { period, billable: money(t.billable), observed: money(t.observed), unassigned: money(t.unassigned), total: money(t.total) };
+    }).filter((x) => units(x.total) > 0);
+  }],
+
+  ["POST", /^\/department\/sync$/, (): SyncResult => {
+    if (!me().admin) fail(403, "Only the department admin can run a sync by hand");
+    world.lastSync = new Date().toISOString();
+    const live = world.pods.filter((x) => x.state !== "terminated").length
+      + world.keys.filter((k) => k.status !== "disabled").length;
+    return { resources_polled: live, spend_entries: 0, skipped: false, errors: 0 };
+  }],
+
+  // Person 3's components (C7) on mocks, so the dashboards render without the backend.
+  ["GET", /^\/reports\/weekly$/, () => {
+    const p = me();
+    if (!p.admin && !p.professor_id) fail(403, "only professors and department admins can see weekly reports");
+    const monday = new Date();
+    monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 7);
+    // The seed's spend is from today, so the last full week is empty, as on the real API.
+    return { week_start: monday.toISOString().slice(0, 10), rows: [],
+      totals: { this_week_usd: "0.0000", last_week_usd: "0.0000", change_pct: null }, escalations: {} };
+  }],
+
+  ["GET", /^\/escalations$/, (_m, _b, query) => {
+    const p = me();
+    const status = query.get("status");
+    return world.escalations.filter((e) =>
+      (e.recipient_type === "department" ? p.admin : !!e.group_id && ownsGroup(p, e.group_id))
+      && (!status || e.status === status));
+  }],
+
+  ["POST", /^\/escalations\/([^/]+)\/(approve|reject)$/, (m, body) => {
+    const p = me();
+    const e = world.escalations.find((x) => x.id === m[1]);
+    const mine = e && (e.recipient_type === "department" ? p.admin : !!e.group_id && ownsGroup(p, e.group_id));
+    if (!e || !mine) return fail(404, "Escalation not found");
+    if (e.status !== "pending") fail(409, `This escalation is already ${e.status}`);
+    e.status = m[2] === "approve" ? "approved" : "rejected";
+    e.decided_at = new Date().toISOString();
+    e.note = m[2] === "reject" ? (body.note || null) : null;
+    e.result = m[2] === "approve" ? {} : null;
+    return e;
   }],
 ];
 

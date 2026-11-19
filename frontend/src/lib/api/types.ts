@@ -237,3 +237,67 @@ export interface WeeklyReport {
   totals: { this_week_usd: Money; last_week_usd: Money; change_pct: number | null };
   escalations: Record<string, number>; // this week's escalations by status
 }
+
+
+// ---- C6 (Person 1): department dashboard ----
+
+/** How the department funds a professor: a monthly ceiling, or tracking only (D1). */
+export interface BudgetSetting {
+  mode: "ceiling" | "tracking";
+  monthly_amount: Money | null; // null = tracking only
+  rollover: boolean;
+  rollover_cap: Money | null; // null = default, 1 x monthly_amount (D2)
+}
+
+/** GET /professors: the admin sees every current professor of his department. */
+export interface Professor {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  department_id: string;
+  budget_setting: BudgetSetting;
+  group_count: number;
+}
+
+/** POST /professors. invited = a new account was created and a sign-in invite was sent. */
+export interface ProfessorAdded extends Professor {
+  invited: boolean;
+}
+
+/** One professor's spend in a month. billable = department credentials (charged back),
+ *  observed = his own credentials (monitored only), unassigned = funding source unknown. */
+export interface BillingRow {
+  professor_id: string; // "TOTAL" on the totals row
+  professor_name: string;
+  billable: Money;
+  observed: Money;
+  unassigned: Money;
+  total: Money;
+  openrouter: Money;
+  runpod: Money;
+}
+
+/** GET /reports/billing?period=YYYY-MM */
+export interface BillingReport {
+  period: string;
+  rows: BillingRow[];
+  totals: BillingRow;
+}
+
+/** GET /reports/trend: one row per month, oldest first. */
+export interface TrendPoint {
+  period: string;
+  billable: Money;
+  observed: Money;
+  unassigned: Money;
+  total: Money;
+}
+
+/** POST /department/sync ("Sync now"). */
+export interface SyncResult {
+  resources_polled: number;
+  spend_entries: number;
+  skipped: boolean; // another sync was still running
+  errors: number; // credentials a provider did not answer for
+}

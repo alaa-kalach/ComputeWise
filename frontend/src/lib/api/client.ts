@@ -46,8 +46,27 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     if (!mockHandler) throw new Error("Mock mode is on but the mocks are not loaded");
     return (await mockHandler(method, path, body)) as T;
   }
+  const res = await send(method, path, body);
+  if (res.status === 204) return undefined as T;
+  const data: unknown = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data);
+  return data as T;
+}
+
+/** Like api(), for answers that are text rather than JSON (the CSV billing report). */
+export async function apiText(method: string, path: string): Promise<string> {
+  if (USE_MOCKS) {
+    if (!mockHandler) throw new Error("Mock mode is on but the mocks are not loaded");
+    return String(await mockHandler(method, path, undefined));
+  }
+  const res = await send(method, path);
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
+  return res.text();
+}
+
+async function send(method: string, path: string, body?: unknown): Promise<Response> {
   const token = await getToken();
-  const res = await fetch(API_URL + path, {
+  return fetch(API_URL + path, {
     method,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -55,8 +74,4 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 204) return undefined as T;
-  const data: unknown = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, data);
-  return data as T;
 }

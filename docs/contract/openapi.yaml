@@ -488,6 +488,31 @@ paths:
         "404": {$ref: "#/components/responses/NotFound"}
         "422": {description: "Ceiling below what he already allocated this month", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
 
+  /department/sync:
+    post:
+      tags: [department]
+      summary: '"Sync now": run the usage sync by hand (admin, D4)'
+      description: |
+        Same run as POST /jobs/sync (usage, limits, watchdog), with a login instead of the job
+        secret, so the department dashboard's button works. Same database lock: a click during a
+        scheduled run answers skipped=true. Written to the audit log as sync.manual.
+      x-owner: person1
+      responses:
+        "200":
+          description: Done
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resources_polled, spend_entries, skipped, errors]
+                properties:
+                  resources_polled: {type: integer}
+                  spend_entries: {type: integer}
+                  skipped: {type: boolean, description: True if another sync was still running}
+                  errors: {type: integer, description: Credentials a provider did not answer for}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/NotAllowed"}
+
   # ------------------------------------------------------------------ RunPod pods (B4)
   /runpod/gpus:
     get:
@@ -918,7 +943,7 @@ paths:
       tags: [system]
       summary: Pull usage from the providers and record spend (pg_cron, every 5 minutes)
       description: |
-        Called by pg_cron, or by hand ("Sync now", D4). Not a user endpoint: no Bearer token,
+        Called by pg_cron. The dashboard's "Sync now" (D4) uses POST /department/sync. No Bearer token,
         it needs the `X-Job-Secret` header. A database lock stops overlapping runs.
       x-owner: person2
       security: []
