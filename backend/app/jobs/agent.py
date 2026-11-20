@@ -42,7 +42,7 @@ from app.models import Group, Professor, User
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-TOOL_MODULES = ["budgets", "usage", "idle_pods", "warn", "propose", "forecast", "anomalies"]
+TOOL_MODULES = ["budgets", "usage", "idle_pods", "warn", "propose", "forecast", "anomalies", "department"]
 
 
 # ---------------------------------------------------------------- the secret header
