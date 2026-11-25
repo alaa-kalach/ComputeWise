@@ -113,3 +113,45 @@ describe("sync now", () => {
     expect(await status(call("POST", "/department/sync"))).toBe(403);
   });
 });
+
+describe("department accounts (A3)", () => {
+  it("lists the department's accounts and professors' own, never a secret", async () => {
+    const creds = await call("GET", "/credentials");
+    expect(creds.map((c: { label: string }) => c.label)).toEqual(
+      ["CS Department OpenRouter", "CS Department RunPod", "Khoury lab OpenRouter"]);
+    expect(JSON.stringify(creds)).not.toMatch(/secret|sk-or|rpa_/);
+    setMockPersona("sara");
+    expect(await call("GET", "/credentials")).toEqual([]);
+  });
+
+  it("adds an account only with a key the provider accepts, and never returns it", async () => {
+    expect(await status(call("POST", "/credentials", { owner: "department", provider: "runpod", label: "X", secret: "nope" }))).toBe(422);
+    const c = await call("POST", "/credentials", { owner: "department", provider: "runpod", label: "Spare RunPod", secret: "rpa_abc" });
+    expect(c).toMatchObject({ owner_type: "department", provider: "runpod", status: "active", grants: [] });
+    expect(JSON.stringify(c)).not.toContain("rpa_abc");
+    setMockPersona("karim");
+    expect(await status(call("POST", "/credentials", { owner: "department", provider: "runpod", label: "X", secret: "rpa_x" }))).toBe(403);
+  });
+
+  it("grants once per professor, with a ceiling, and refuses a revoked account", async () => {
+    expect(await status(call("POST", "/credentials/cred-dept-or/grants", { professor_id: PROF_A, ceiling_usd: "10" }))).toBe(409);
+    const g = await call("POST", "/credentials/cred-dept-or/grants", { professor_id: PROF_B, ceiling_usd: "75" });
+    expect(g).toMatchObject({ professor_name: "Prof. Rania Khoury", ceiling_usd: "75.0000", status: "active" });
+    expect((await call("PATCH", `/credentials/cred-dept-or/grants/${g.id}`, { ceiling_usd: null })).ceiling_usd).toBeNull();
+    await call("DELETE", "/credentials/cred-dept-or");
+    expect(await status(call("POST", "/credentials/cred-dept-or/grants", { professor_id: PROF_B, ceiling_usd: null }))).toBe(409);
+  });
+
+  it("revoking an account ends all of its grants", async () => {
+    await call("DELETE", "/credentials/cred-dept-rp");
+    const rp = (await call("GET", "/credentials")).find((c: { id: string }) => c.id === "cred-dept-rp");
+    expect(rp.status).toBe("revoked");
+    expect(rp.grants.every((g: { status: string }) => g.status === "revoked")).toBe(true);
+  });
+
+  it("lets only the owner revoke, and hides other professors' accounts", async () => {
+    setMockPersona("karim");
+    expect(await status(call("DELETE", "/credentials/cred-dept-or"))).toBe(403); // granted to him, not his
+    expect(await status(call("DELETE", "/credentials/cred-khoury-or"))).toBe(404); // not his to see
+  });
+});

@@ -301,3 +301,33 @@ export interface SyncResult {
   skipped: boolean; // another sync was still running
   errors: number; // credentials a provider did not answer for
 }
+
+// ---- Credentials (A3 backend, C6 screen): provider accounts and the department's grants ----
+export type OwnerType = "department" | "professor";
+
+/** A department account lent to one professor, optionally capped in USD. */
+export interface Grant {
+  id: string;
+  credential_id: string;
+  professor_id: string;
+  professor_name: string;
+  ceiling_usd: Money | null; // null = no ceiling
+  status: "active" | "revoked";
+}
+
+/** GET /credentials. The secret itself is never sent, to anyone. */
+export interface Credential {
+  id: string;
+  owner_type: OwnerType;
+  owner_id: string;
+  provider: Provider;
+  label: string;
+  status: "active" | "revoked";
+  created_at: string;
+  grants: Grant[];
+}
+
+/** GET /department/sync */
+export interface SyncStatus {
+  last_synced_at: string | null;
+}

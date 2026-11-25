@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -370,6 +371,24 @@ class SyncNowOut(BaseModel):
     spend_entries: int
     skipped: bool  # another sync was still running
     errors: int  # credentials the providers did not answer for
+
+
+class SyncStatusOut(BaseModel):
+    last_synced_at: datetime | None  # newest usage reading in the department; None = never synced
+
+
+@sync_router.get("/sync", response_model=SyncStatusOut)
+def sync_status(scope: ScopeDep) -> SyncStatusOut:
+    """When usage was last read for the department's groups (the dashboard's "last synced")."""
+    if not scope.me.is_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the department admin sees the sync status")
+    from app.budget.api import _last_synced  # same rule as the professor's summary
+
+    groups = list(scope.session.exec(
+        select(Group.id).join(Professor, Professor.id == Group.professor_id)
+        .where(Professor.department_id.in_(scope.me.admin_department_ids))  # type: ignore[attr-defined]
+    ).all())
+    return SyncStatusOut(last_synced_at=_last_synced(scope.session, groups))
 
 
 @sync_router.post("/sync", response_model=SyncNowOut)

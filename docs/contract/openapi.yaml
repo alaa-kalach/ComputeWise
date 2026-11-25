@@ -489,6 +489,23 @@ paths:
         "422": {description: "Ceiling below what he already allocated this month", content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
 
   /department/sync:
+    get:
+      tags: [department]
+      summary: When usage was last read for the department (admin)
+      description: The newest usage reading across the department's groups; the dashboard shows "last synced N min ago".
+      x-owner: person1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [last_synced_at]
+                properties:
+                  last_synced_at: {type: [string, "null"], format: date-time, description: null = never synced}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/NotAllowed"}
     post:
       tags: [department]
       summary: '"Sync now": run the usage sync by hand (admin, D4)'

@@ -19,6 +19,8 @@ import type {
   ProfessorAdded,
   SyncResult,
   TrendPoint,
+  Credential,
+  Grant,
 } from "../lib/api/types";
 import { DEPT, FUNDING, GROUPS, MEMBERS, PERSONAS, PROF_A, PROF_B, USER_IDS, personaMe, world, type LedgerRow, type MockProfessor, type Persona } from "./world";
 
@@ -259,6 +261,30 @@ const rowOut = (r: Units): BillingRow => ({
 function previousPeriod(period: string): string {
   const [y, mo] = period.split("-").map(Number);
   return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
+}
+
+/** A credential the caller may see (404 otherwise, like the backend's scope). */
+function seeCredential(id: string): Credential {
+  const p = me();
+  const c = world.credentials.find((x) => x.id === id);
+  const visible = c && (p.admin
+    ? c.owner_type === "department" || world.professors.some((x) => x.id === c.owner_id)
+    : !!p.professor_id && (c.owner_id === p.professor_id || c.grants.some((g) => g.professor_id === p.professor_id)));
+  if (!c || !visible) return fail(404, "Credential not found");
+  return c;
+}
+
+function ownsCredential(c: Credential): boolean {
+  const p = me();
+  return c.owner_type === "department" ? p.admin : c.owner_id === p.professor_id;
+}
+
+function seeGrant(credId: string, grantId: string) {
+  const cred = seeCredential(credId);
+  if (cred.owner_type !== "department" || !me().admin) fail(403, "Only the department admin grants department credentials");
+  const grant = cred.grants.find((g) => g.id === grantId);
+  if (!grant) return fail(404, "Grant not found");
+  return { cred, grant };
 }
 
 // ------------------------------------------------------------------ routes
@@ -722,6 +748,87 @@ const routes: [string, RegExp, Route][] = [
     const live = world.pods.filter((x) => x.state !== "terminated").length
       + world.keys.filter((k) => k.status !== "disabled").length;
     return { resources_polled: live, spend_entries: 0, skipped: false, errors: 0 };
+  }],
+
+  ["GET", /^\/department\/sync$/, () => {
+    if (!me().admin) fail(403, "Only the department admin sees the sync status");
+    return { last_synced_at: world.lastSync };
+  }],
+
+  // ---------------------------------------------------------------- A3: provider accounts and grants
+  ["GET", /^\/credentials$/, () => {
+    const p = me();
+    return world.credentials.filter((c) =>
+      p.admin ? c.owner_type === "department" || world.professors.some((x) => x.id === c.owner_id)
+        : !!p.professor_id && (c.owner_id === p.professor_id
+          || c.grants.some((g) => g.professor_id === p.professor_id && g.status === "active")));
+  }],
+
+  ["POST", /^\/credentials$/, (_m, body): Credential => {
+    const p = me();
+    const provider = body.provider as Provider;
+    let owner_id = p.professor_id ?? "";
+    if (body.owner === "department") {
+      if (!p.admin) fail(403, "Only a department admin adds department credentials");
+      owner_id = DEPT;
+    } else if (!p.professor_id) {
+      fail(403, "Only a professor adds his own credentials");
+    }
+    const label = String(body.label ?? "").trim();
+    const secret = String(body.secret ?? "").trim();
+    if (!label) fail(422, "label is empty");
+    if (!secret) fail(422, "The key is empty");
+    // The backend asks the provider; the mock accepts keys shaped like real ones.
+    const looksRight = provider === "openrouter" ? secret.startsWith("sk-or-") : secret.startsWith("rpa_");
+    if (!looksRight) {
+      fail(422, `${provider} rejected this key. Check that it is a `
+        + (provider === "openrouter" ? "management key" : "RunPod API key") + " and that it is still active.");
+    }
+    const cred: Credential = {
+      id: `cred-${world.credentials.length + 1}`, owner_type: body.owner, owner_id, provider, label,
+      status: "active", created_at: new Date().toISOString(), grants: [],
+    };
+    world.credentials.push(cred);
+    return cred;
+  }],
+
+  ["DELETE", /^\/credentials\/([^/]+)$/, (m) => {
+    const cred = seeCredential(m[1]);
+    if (!ownsCredential(cred)) fail(403, "Only the credential's owner can revoke it");
+    cred.status = "revoked";
+    for (const g of cred.grants) g.status = "revoked";
+    return undefined;
+  }],
+
+  ["POST", /^\/credentials\/([^/]+)\/grants$/, (m, body): Grant => {
+    const cred = seeCredential(m[1]);
+    if (cred.owner_type !== "department" || !me().admin) fail(403, "Only the department admin grants department credentials");
+    if (cred.status !== "active") fail(409, "This credential is revoked");
+    const prof = world.professors.find((x) => x.id === body.professor_id && !x.removed);
+    if (!prof) return fail(404, "Professor not found");
+    if (cred.grants.some((g) => g.professor_id === prof.id && g.status === "active")) fail(409, "Already granted to this professor");
+    const ceiling = body.ceiling_usd ?? null;
+    if (ceiling !== null && !(Number(ceiling) >= 0)) fail(422, "Input should be greater than or equal to 0");
+    const grant: Grant = {
+      id: `grant-${cred.id}-${cred.grants.length + 1}`, credential_id: cred.id, professor_id: prof.id,
+      professor_name: prof.name, ceiling_usd: ceiling === null ? null : money(units(ceiling)), status: "active",
+    };
+    cred.grants.push(grant);
+    return grant;
+  }],
+
+  ["PATCH", /^\/credentials\/([^/]+)\/grants\/([^/]+)$/, (m, body): Grant => {
+    const { grant } = seeGrant(m[1], m[2]);
+    if (grant.status !== "active") fail(409, "This grant is revoked");
+    const ceiling = body.ceiling_usd ?? null;
+    if (ceiling !== null && !(Number(ceiling) >= 0)) fail(422, "Input should be greater than or equal to 0");
+    grant.ceiling_usd = ceiling === null ? null : money(units(ceiling));
+    return grant;
+  }],
+
+  ["DELETE", /^\/credentials\/([^/]+)\/grants\/([^/]+)$/, (m) => {
+    seeGrant(m[1], m[2]).grant.status = "revoked";
+    return undefined;
   }],
 
   // Person 3's components (C7) on mocks, so the dashboards render without the backend.

@@ -394,3 +394,13 @@ dialog.modal::backdrop { background: rgba(14, 22, 30, 0.45); }
   .legend .muted { display: none; }
   .chart { padding: var(--s3); }
 }
+
+/* C6: department accounts and the wireframe extras */
+.panel h3 .grow { flex: 1; min-width: 0; }
+.gauge-split { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s4); font-size: 15px; margin-top: 2px; }
+.gauge-split b { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.ceiling-use { display: grid; gap: 2px; margin-top: 4px; max-width: 140px; }
+.ceiling-use[data-level="low"] .usage > span { background: var(--low); }
+.ceiling-use[data-level="out"] .usage > span { background: var(--out); }
+.gauges-fill .gauge { flex: 1 1 0; min-width: 190px; }
+.columns + .item-meta { margin-top: var(--s3); }

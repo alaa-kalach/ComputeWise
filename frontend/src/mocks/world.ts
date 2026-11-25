@@ -2,7 +2,7 @@
 // budgets, keys and pods, so screens built on mocks show the numbers the real API will.
 // State lives in memory and resets on reload (resetWorld()).
 
-import type { AccessRequest, BudgetPolicy, BudgetSetting, Escalation, KeySummary, Me, Pod, Provider, Role } from "../lib/api/types";
+import type { AccessRequest, BudgetPolicy, BudgetSetting, Credential, Escalation, KeySummary, Me, Pod, Provider, Role } from "../lib/api/types";
 
 export interface Persona {
   key: string;
@@ -94,6 +94,8 @@ export interface World {
   professors: MockProfessor[];
   escalations: Escalation[];
   lastSync: string;
+  /** Provider accounts, as in the backend seed. Secrets are never kept, not even in the mock. */
+  credentials: Credential[];
   ledger: LedgerRow[];
   /** user sub-budgets: `${group}:${user}` -> monthly amount (D9) */
   userPolicies: Record<string, string>;
@@ -156,6 +158,25 @@ function freshWorld(): World {
       },
     ],
     lastSync: new Date(Date.now() - 3 * 60_000).toISOString(),
+    credentials: [
+      {
+        id: "cred-dept-or", owner_type: "department", owner_id: DEPT, provider: "openrouter",
+        label: "CS Department OpenRouter", status: "active", created_at: lastMonth,
+        grants: [{ id: "grant-or-a", credential_id: "cred-dept-or", professor_id: PROF_A, professor_name: "Prof. Karim Nassar", ceiling_usd: "150.0000", status: "active" }],
+      },
+      {
+        id: "cred-dept-rp", owner_type: "department", owner_id: DEPT, provider: "runpod",
+        label: "CS Department RunPod", status: "active", created_at: lastMonth,
+        grants: [
+          { id: "grant-rp-a", credential_id: "cred-dept-rp", professor_id: PROF_A, professor_name: "Prof. Karim Nassar", ceiling_usd: "300.0000", status: "active" },
+          { id: "grant-rp-b", credential_id: "cred-dept-rp", professor_id: PROF_B, professor_name: "Prof. Rania Khoury", ceiling_usd: "200.0000", status: "active" },
+        ],
+      },
+      {
+        id: "cred-khoury-or", owner_type: "professor", owner_id: PROF_B, provider: "openrouter",
+        label: "Khoury lab OpenRouter", status: "active", created_at: lastMonth, grants: [],
+      },
+    ],
     ledger: [
       { group_id: FYP1, user: null, type: "rollover", amount: "50" },
       { group_id: FYP1, user: null, type: "allocation", amount: "50" },

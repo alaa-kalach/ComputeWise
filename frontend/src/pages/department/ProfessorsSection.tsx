@@ -2,8 +2,8 @@ import { useState } from "react";
 
 import { Button, Notice, Tag } from "../../components/ui";
 import { removeProfessor } from "../../lib/api/endpoints";
-import type { BillingRow, Professor, ProfessorAdded } from "../../lib/api/types";
-import { usd } from "../../lib/money";
+import type { BillingRow, Group, Professor, ProfessorAdded } from "../../lib/api/types";
+import { budgetLevel, fraction, usd } from "../../lib/money";
 import { ConfirmModal } from "../professor/modals/ConfirmModal";
 import { AddProfessorModal } from "./modals/AddProfessorModal";
 import { BudgetSettingModal } from "./modals/BudgetSettingModal";
@@ -13,10 +13,12 @@ import { BudgetSettingModal } from "./modals/BudgetSettingModal";
 export function ProfessorsSection({
   professors,
   spend,
+  groups,
   onChange,
 }: {
   professors: Professor[];
   spend: BillingRow[];
+  groups: Group[];
   onChange: () => Promise<void>;
 }) {
   const [adding, setAdding] = useState(false);
@@ -54,7 +56,7 @@ export function ProfessorsSection({
               <tr>
                 <th scope="col">Professor</th>
                 <th scope="col">Budget from the department</th>
-                <th scope="col" className="num">Teams</th>
+                <th scope="col">Groups</th>
                 <th scope="col" className="num">Spent this month</th>
                 <th scope="col"><span className="sr-only">Actions</span></th>
               </tr>
@@ -73,6 +75,7 @@ export function ProfessorsSection({
                       {setting.mode === "ceiling" ? (
                         <>
                           <div>{usd(setting.monthly_amount)} a month</div>
+                          <CeilingUse spent={s?.total ?? "0"} ceiling={setting.monthly_amount ?? "0"} />
                           <div className="item-meta">
                             {setting.rollover
                               ? `Rollover up to ${usd(setting.rollover_cap ?? setting.monthly_amount)}`
@@ -83,7 +86,11 @@ export function ProfessorsSection({
                         <Tag>Tracking only</Tag>
                       )}
                     </td>
-                    <td className="num">{p.group_count}</td>
+                    <td>
+                      {groups.filter((g) => g.professor_id === p.id).map((g) => g.name).join(", ") || (
+                        <span className="muted">None yet</span>
+                      )}
+                    </td>
                     <td className="num">
                       <div><b>{usd(s?.total ?? "0")}</b></div>
                       <div className="item-meta">
@@ -136,5 +143,20 @@ export function ProfessorsSection({
         </p>
       </ConfirmModal>
     </section>
+  );
+}
+
+/** How much of his monthly ceiling his teams have spent (display only; the backend enforces). */
+function CeilingUse({ spent, ceiling }: { spent: string; ceiling: string }) {
+  const pct = Math.round(fraction(spent, ceiling) * 100);
+  const level = budgetLevel(String(Number(ceiling) - Number(spent)), ceiling);
+  return (
+    <div className="ceiling-use" data-level={level}>
+      <div className="usage" role="meter" aria-label="Ceiling used this month" aria-valuemin={0} aria-valuemax={100}
+        aria-valuenow={pct}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <span className="item-meta">{pct}% used</span>
+    </div>
   );
 }

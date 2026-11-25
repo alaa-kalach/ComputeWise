@@ -57,3 +57,33 @@ def test_only_the_department_admin_can_sync(client, who):
 
 def test_a_login_is_needed(client):
     assert client.post("/department/sync").status_code == 401
+
+
+# ---------------------------------------------------------------- GET: "last synced" for the dashboard
+def test_the_department_sees_when_usage_was_last_read(client, session):
+    from datetime import datetime
+
+    from sqlalchemy import func
+
+    from app.models import UsageSnapshot
+
+    newest = session.exec(select(func.max(UsageSnapshot.polled_at))).one()
+    r = client.get("/department/sync", headers=auth("dana"))
+    assert r.status_code == 200
+    assert datetime.fromisoformat(r.json()["last_synced_at"]) == newest
+
+
+def test_a_sync_moves_last_synced_forward(client, session):
+    r = session.get(IssuedResource, OMAR_POD)
+    WORLD.resources[r.external_ref] = MockResource(
+        provider=r.provider, name="seed", user_id=str(r.user_id), group_id=str(r.group_id), total_usd=D("17.3"),
+    )
+    before = client.get("/department/sync", headers=auth("dana")).json()["last_synced_at"]
+    client.post("/department/sync", headers=auth("dana"))
+    after = client.get("/department/sync", headers=auth("dana")).json()["last_synced_at"]
+    assert after > before
+
+
+@pytest.mark.parametrize("who", ["karim", "sara"])
+def test_only_the_department_sees_the_sync_status(client, who):
+    assert client.get("/department/sync", headers=auth(who)).status_code == 403

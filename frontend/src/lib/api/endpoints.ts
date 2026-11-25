@@ -30,6 +30,10 @@ import type {
   ProfessorAdded,
   SyncResult,
   TrendPoint,
+  Credential,
+  Grant,
+  OwnerType,
+  SyncStatus,
 } from "./types";
 
 const q = (params: Record<string, string | boolean | undefined>) => {
@@ -113,3 +117,17 @@ export const getBillingCsv = (period: string) => apiText("GET", `/reports/billin
 export const getSpendTrend = () => api<TrendPoint[]>("GET", "/reports/trend");
 /** "Sync now": the department admin runs the usage sync without waiting for the next 5 minutes. */
 export const syncNow = () => api<SyncResult>("POST", "/department/sync");
+export const getSyncStatus = () => api<SyncStatus>("GET", "/department/sync");
+
+// Person 1 (A3): provider accounts. The secret goes in once and never comes back.
+export const listCredentials = () => api<Credential[]>("GET", "/credentials");
+export const addCredential = (owner: OwnerType, provider: Provider, label: string, secret: string) =>
+  api<Credential>("POST", "/credentials", { owner, provider, label, secret });
+/** Revoke for everyone: grants end, keys issued under it are disabled, its pods are stopped. */
+export const revokeCredential = (id: string) => api<void>("DELETE", `/credentials/${id}`);
+export const grantCredential = (id: string, professor_id: string, ceiling_usd: Money | null) =>
+  api<Grant>("POST", `/credentials/${id}/grants`, { professor_id, ceiling_usd });
+export const setGrantCeiling = (id: string, grant_id: string, ceiling_usd: Money | null) =>
+  api<Grant>("PATCH", `/credentials/${id}/grants/${grant_id}`, { ceiling_usd });
+/** End one professor's grant: same cut-off as revoking, for him only. */
+export const revokeGrant = (id: string, grant_id: string) => api<void>("DELETE", `/credentials/${id}/grants/${grant_id}`);
